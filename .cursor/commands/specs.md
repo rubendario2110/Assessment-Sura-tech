@@ -2,6 +2,11 @@
 
 Generate and maintain the assessment spec files inside `specs/`.
 
+Mandatory routing:
+- Delegate this command to `spec-agent`.
+- If `spec-agent` cannot be invoked, stop and report `routing-blocked`.
+- At the beginning of execution, explicitly state: `runner=spec-agent`.
+
 Source of truth priority:
 1. Assessment text provided in the current chat.
 2. `docs/assessment-input.md` if it exists.
@@ -25,9 +30,14 @@ Per-file content requirements:
 - Output files / evidence expected
 - Open questions and assumptions
 
+Mandatory evidence:
+- Append one new execution entry to `docs/evidence/spec-agent-evidence.md`.
+- Include source used, files updated, coverage status, ambiguities, and risks.
+
 After writing files, provide this summary:
 - `Files written`
 - `Coverage status` (complete/partial)
 - `Ambiguities`
 - `Actionable tasks`
 - `Risks`
+- `Evidence file updated`

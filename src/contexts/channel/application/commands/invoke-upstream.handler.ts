@@ -6,7 +6,7 @@ import {
   IntegrationHttpClient,
   TimeoutError,
   UpstreamError,
-} from "../../../../framework/index.js";
+} from "@assessment/integration-framework";
 import {
   CHANNEL_UPSTREAM_BASE_URL,
   type ChannelUpstreamBaseUrl,

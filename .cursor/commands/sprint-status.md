@@ -2,6 +2,11 @@
 
 Generate and persist the current sprint status.
 
+Mandatory routing:
+- Delegate this command to `planning-agent`.
+- If `planning-agent` cannot be invoked, stop and report `routing-blocked`.
+- At the beginning of execution, explicitly state: `runner=planning-agent`.
+
 Objective:
 1. Identify the active sprint.
 2. Compute completion for stories and tasks in that sprint.
@@ -35,6 +40,10 @@ Status calculation rules:
 Mandatory output file:
 - `docs/sprint-status.md`
 
+Mandatory evidence:
+- Append one new execution entry to `docs/evidence/planning-agent-evidence.md`.
+- Include active sprint detection method, completion snapshot, blockers, and next actions.
+
 Mandatory output structure in `docs/sprint-status.md`:
 - Snapshot timestamp (UTC)
 - Active sprint
@@ -54,3 +63,4 @@ Expected output in chat:
 - `Blocked items`
 - `Next actions`
 - `File updated: docs/sprint-status.md`
+- `Evidence file updated: docs/evidence/planning-agent-evidence.md`

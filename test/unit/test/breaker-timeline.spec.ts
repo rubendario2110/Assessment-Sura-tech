@@ -1,5 +1,8 @@
 import { describe, expect, it } from "@jest/globals";
-import { extractBreakerTimeline, type BreakerTimelineEntry } from "./breaker-timeline.js";
+import {
+  extractBreakerTimeline,
+  type BreakerTimelineEntry,
+} from "../../../src/test/breaker-timeline.js";
 
 const SAMPLE_LOG_LINES = [
   'channel:{"timestamp":"2026-05-08T21:53:50.710Z","level":"info","service":"channel","message":"circuit_breaker","dependency":"upstream","breakerEvent":"failure","breakerState":"closed","outcome":"error"}',
@@ -28,11 +31,12 @@ describe("extractBreakerTimeline (US-027)", () => {
   });
 
   it("safely ignores non-circuit_breaker noise", () => {
-    const timeline = extractBreakerTimeline([
-      'channel:{"message":"upstream_http","httpStatus":200}',
-      "garbage line",
-    ]);
-    expect(timeline).toEqual([]);
+    expect(
+      extractBreakerTimeline([
+        'channel:{"message":"upstream_http","httpStatus":200}',
+        "garbage line",
+      ]),
+    ).toEqual([]);
   });
 
   it("does not break on lines without channel: prefix", () => {
@@ -42,5 +46,22 @@ describe("extractBreakerTimeline (US-027)", () => {
     expect(timeline).toHaveLength(1);
     expect(timeline[0]?.breakerState).toBe("open");
     expect(timeline[0]?.previousState).toBe("closed");
+  });
+
+  it("falls back to defaults when dependency / timestamp are missing or wrong type", () => {
+    const timeline = extractBreakerTimeline([
+      '{"message":"circuit_breaker","breakerEvent":"open","breakerState":"open"}',
+    ]);
+    expect(timeline).toHaveLength(1);
+    expect(timeline[0]?.dependency).toBe("unknown");
+    expect(timeline[0]?.timestamp).toEqual(expect.any(String));
+  });
+
+  it("ignores invalid breakerState values", () => {
+    expect(
+      extractBreakerTimeline([
+        '{"message":"circuit_breaker","breakerEvent":"open","breakerState":"explosion"}',
+      ]),
+    ).toEqual([]);
   });
 });

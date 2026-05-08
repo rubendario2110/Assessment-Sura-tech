@@ -45,39 +45,58 @@ The `pnpm start:*`, `pnpm openapi:generate`, and `pnpm test:reliability` scripts
 
 ```bash
 pnpm install
-pnpm build
-pnpm test              # Jest (ESM) unit + CQRS handler specs
-pnpm test:reliability  # builds then spins compiled services + drives flaky scenarios
-pnpm docs:api          # refreshes docs/api/openapi.json + Postman collection
+pnpm build              # builds packages/integration-framework first, then src/
+pnpm lint               # ESLint flat config (0 errors / 0 warnings gate)
+pnpm test               # Jest (ESM) — 124+ specs under test/unit
+pnpm test:coverage      # gates: lines/stmts/funcs 100%, branches 90% (decoradores TS)
+pnpm test:reliability   # spins compiled services + drives flaky scenarios + breaker timeline
+pnpm docs:api           # refreshes docs/api/openapi.json + Postman collection
+pnpm demo:config        # validates docker-compose.demo.yml syntax (no daemon needed)
+pnpm demo:up            # boots Redis + OTel Collector + Jaeger (requires Docker daemon)
+pnpm demo:down          # tears the demo stack down
 ```
 
-Artifacts:
+Mandatory artifacts:
 
-- `docs/api/openapi.json`
-- `docs/postman/assessment.postman_collection.json`
+- `packages/integration-framework/` — DDD package consumed via `@assessment/integration-framework`
+- `test/unit/**` — specs mirroring source paths
+- `docs/api/openapi.json` + `docs/postman/assessment.postman_collection.json`
+- `docker-compose.demo.yml` + `observability/otel-collector-config.yaml`
+- `sonar-project.properties` (Sonar gate runs in CI; local proxy via lint + coverage + tsc)
+- `eslint.config.js` (flat config, v9)
 
-## Source Layout (DDD + CQRS by bounded context)
+## Repository Layout (DDD + CQRS by bounded context)
 
 ```
+packages/
+  integration-framework/                       # @assessment/integration-framework (workspace pkg)
+    src/                                       # config, errors, retry, opossum CB, bulkhead, http-client...
 src/
-  framework/                       # Reusable integration framework (US-009/010/018)
   contexts/
     channel/
       domain/{value-objects,events}
-      application/{commands,queries,dto}      # @nestjs/cqrs handlers
-      infrastructure/                         # providers + tokens (DI ports)
-      interfaces/http/                        # NestJS controllers
-      channel.module.ts
-      main.ts
+      application/{commands,queries,dto}       # @nestjs/cqrs handlers
+      infrastructure/                          # providers + tokens (DI ports)
+      interfaces/http/                         # NestJS controllers
+      channel.module.ts / main.ts
     upstream/
       domain/{value-objects,events,*.port.ts}
       application/{commands,queries}
-      infrastructure/                         # in-memory store + repository
+      infrastructure/                          # in-memory store + repository
       interfaces/http/
-      upstream.module.ts
-      main.ts
-  scripts/                                    # tooling (OpenAPI generator)
-  test/                                       # reliability harness
+      upstream.module.ts / main.ts
+  scripts/                                     # OpenAPI generator
+  test/                                        # reliability harness + helpers
+test/
+  unit/
+    packages/integration-framework/**          # framework specs
+    contexts/{channel,upstream}/**             # CQRS + VO + infra specs
+    test/                                      # harness helpers
+  integration/                                 # reserved for cross-BC tests
+  e2e/                                         # reserved for HTTP+Nest e2e tests
+observability/
+  otel-collector-config.yaml                   # OTLP -> Jaeger + debug exporter
+docker-compose.demo.yml                        # Redis + OTel collector + Jaeger
 ```
 
 CQRS bus wiring uses `@nestjs/cqrs` (`CommandBus` / `QueryBus` / `EventBus`). Test runner is **Jest** (NestJS official preset, ESM mode via `ts-jest/presets/default-esm` and `--experimental-vm-modules`).
@@ -91,6 +110,12 @@ CQRS bus wiring uses `@nestjs/cqrs` (`CommandBus` / `QueryBus` / `EventBus`). Te
 5. `/architecture`
 6. `/implementation`
 7. `/review`
+
+## Command Routing Check (Important)
+
+- For `/implementation`, the run must start with `runner=implementation-agent`.
+- If you do not see that marker in the first response, stop the run and invoke `/implementation-agent` directly.
+- Do not accept implementation output when execution stayed on the default agent.
 
 ## Note on `/specs`
 
@@ -141,10 +166,20 @@ Optional overview:
 - API documentation: Swagger/OpenAPI (`docs/api/openapi.json`)
 - API client artifact: Postman Collection (`docs/postman/assessment.postman_collection.json`)
 - Node.js runtime: latest stable Current release (as of 2026-05-08: `v26.1.0`)
+- Integration framework structure: dedicated DDD package in `packages/integration-framework/`
+- Tests location: top-level `test/` (`test/unit`, `test/integration`, `test/e2e`)
+- Demo infrastructure: `docker-compose.demo.yml` with Redis + OpenTelemetry Collector + trace backend
+- OTel Collector config: `observability/otel-collector-config.yaml`
+- Quality gates:
+  - Coverage: 100%
+  - Duplication: 0%
+  - Code smells: 0
+  - ESLint: 0 errors, 0 warnings
 
 ## Output Templates
 
 - `docs/assessment.md`
 - `docs/architecture.mmd`
+- `docs/integration-framework-library-stack.md`
 
 Both files are intentionally reset as templates so you can generate final content through your SDD workflow.

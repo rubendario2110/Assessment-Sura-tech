@@ -1,4 +1,4 @@
-import { resolveTraceparent, serializeTraceparent, type TraceContext } from "../../../../framework/index.js";
+import { resolveTraceparent, serializeTraceparent, type TraceContext } from "@assessment/integration-framework";
 
 /**
  * Wraps W3C trace context as a value-object so handlers stay framework-agnostic.

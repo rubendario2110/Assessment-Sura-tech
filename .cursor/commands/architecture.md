@@ -2,6 +2,11 @@
 
 Build or refine the multi-country target architecture using DDD, C4, and Azure-first technical decisions.
 
+Mandatory routing:
+- Delegate this command to `architecture-agent`.
+- If `architecture-agent` cannot be invoked, stop and report `routing-blocked`.
+- At the beginning of execution, explicitly state: `runner=architecture-agent`.
+
 Objective:
 
 1. Validate that Section A in `docs/assessment.md` is aligned with architecture diagrams.
@@ -34,9 +39,14 @@ Objective:
 - caching
 9. Verify that the 12-week roadmap covers Reliability, Integration Modernization, and Observability/Operations.
 
+Mandatory evidence:
+- Append one new execution entry to `docs/evidence/architecture-agent-evidence.md`.
+- Include timestamp, changed artifacts, key decisions, tradeoffs, risks, and next actions.
+
 Expected output:
 - Architecture improvements
 - DDD framing updates in Section A
 - Mermaid C4 files created/updated
 - Diagram explanation file created/updated
 - Risks, tradeoffs, and mitigations
+- Evidence file updated

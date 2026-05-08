@@ -35,6 +35,26 @@ function isOpenBreakerError(err: unknown): boolean {
   return typeof err === "object" && err !== null && (err as { code?: string }).code === "EOPENBREAKER";
 }
 
+const RETRYABLE_HTTP_STATUS = new Set([408, 429, 502, 503, 504]);
+
+/** Pure retry policy used by {@link IntegrationHttpClient}. Exported for direct testing. */
+export function shouldRetryError(err: unknown): boolean {
+  if (err instanceof TimeoutError) return true;
+  if (err instanceof UpstreamError) {
+    return err.httpStatus !== undefined && RETRYABLE_HTTP_STATUS.has(err.httpStatus);
+  }
+  if (err instanceof TypeError) return true;
+  return false;
+}
+
+/** Pure error normalisation used by {@link IntegrationHttpClient}. Exported for direct testing. */
+export function normalizeBreakerError(err: unknown): Error | FrameworkError {
+  if (isOpenBreakerError(err)) {
+    return new CircuitOpenError("Circuit breaker rejected call while open", { cause: err });
+  }
+  return err instanceof Error ? err : new Error(String(err));
+}
+
 /**
  * Reusable HTTP integration client (US-018): bulkhead → opossum circuit breaker → retry+jitter → fetch+timeout.
  */
@@ -103,30 +123,14 @@ export class IntegrationHttpClient {
             executeWithRetry<HttpResult>(
               async (attempt) => this.performFetch(req, attempt, traceparent),
               this.cfg,
-              (err) => this.shouldRetry(err),
+              shouldRetryError,
             ),
         ),
       );
       return result as HttpResult;
     } catch (err) {
-      throw this.normalizeError(err);
+      throw normalizeBreakerError(err);
     }
-  }
-
-  private normalizeError(err: unknown): Error | FrameworkError {
-    if (isOpenBreakerError(err)) {
-      return new CircuitOpenError("Circuit breaker rejected call while open", { cause: err });
-    }
-    return err instanceof Error ? err : new Error(String(err));
-  }
-
-  private shouldRetry(err: unknown): boolean {
-    if (err instanceof TimeoutError) return true;
-    if (err instanceof UpstreamError && err.httpStatus !== undefined) {
-      return [408, 429, 502, 503, 504].includes(err.httpStatus);
-    }
-    if (err instanceof TypeError) return true;
-    return false;
   }
 
   private async performFetch(req: HttpRequest, attempt: number, traceparent?: string): Promise<HttpResult> {

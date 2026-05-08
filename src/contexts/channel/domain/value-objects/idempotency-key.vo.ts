@@ -1,4 +1,4 @@
-import { generateIdempotencyKey } from "../../../../framework/index.js";
+import { generateIdempotencyKey } from "@assessment/integration-framework";
 
 /**
  * Idempotency key value-object for the Channel bounded context.

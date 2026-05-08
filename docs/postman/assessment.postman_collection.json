@@ -9,7 +9,7 @@
                     "description": "",
                     "item": [
                         {
-                            "id": "091eb7f8-1a85-46a4-a5ea-e0c185a9d7d2",
+                            "id": "63b6f5b1-8dd1-4724-8389-d80bd11e7fb1",
                             "name": "Liveness probe",
                             "request": {
                                 "name": "Liveness probe",
@@ -31,7 +31,7 @@
                             },
                             "response": [
                                 {
-                                    "id": "5a29be8b-29e3-41c2-85e3-6dbc4a8fce03",
+                                    "id": "c0210477-c70e-4d79-9516-e7715f5930fa",
                                     "name": "200",
                                     "originalRequest": {
                                         "url": {
@@ -71,7 +71,7 @@
                             "description": "",
                             "item": [
                                 {
-                                    "id": "e6dd178f-035a-4f5b-964c-7b31ffd0b1a6",
+                                    "id": "a71eebd5-3cab-4acb-8121-a96f90affdd9",
                                     "name": "Expose upstream circuit breaker state (opossum)",
                                     "request": {
                                         "name": "Expose upstream circuit breaker state (opossum)",
@@ -94,7 +94,7 @@
                                     },
                                     "response": [
                                         {
-                                            "id": "5043f9bc-a38f-4d35-ad52-188104c2231f",
+                                            "id": "a05c5ead-cd8b-4008-8740-bec54841d842",
                                             "name": "200",
                                             "originalRequest": {
                                                 "url": {
@@ -137,7 +137,7 @@
                             "description": "",
                             "item": [
                                 {
-                                    "id": "93036015-c7c4-4e50-a975-773c7f7cc571",
+                                    "id": "fac18b1b-baeb-4402-bf1d-f0b25d9853b6",
                                     "name": "Invoke flaky upstream through integration framework (CQRS)",
                                     "request": {
                                         "name": "Invoke flaky upstream through integration framework (CQRS)",
@@ -180,7 +180,7 @@
                                     },
                                     "response": [
                                         {
-                                            "id": "6a54f58f-7d40-4338-8e16-ee33312a9d52",
+                                            "id": "1cf5d8b8-d4b8-4386-b716-d82ec6c6233a",
                                             "name": "200",
                                             "originalRequest": {
                                                 "url": {
@@ -245,7 +245,7 @@
                     "description": "",
                     "item": [
                         {
-                            "id": "860bcfa2-c849-49c8-9f8c-62c10b1141af",
+                            "id": "4c938584-9d9a-47f8-9c19-196fa485ebdd",
                             "name": "Liveness probe",
                             "request": {
                                 "name": "Liveness probe",
@@ -267,7 +267,7 @@
                             },
                             "response": [
                                 {
-                                    "id": "db708608-b0cf-46f4-8bdb-084e5c153b4b",
+                                    "id": "ddcd462c-fe33-4c83-8ba2-5fa9a50dae38",
                                     "name": "200",
                                     "originalRequest": {
                                         "url": {
@@ -307,7 +307,7 @@
                             "description": "",
                             "item": [
                                 {
-                                    "id": "ef1b6bec-d151-42f6-a26f-5f15badb2ad9",
+                                    "id": "aff3e558-8fba-4950-b09c-53d9c85c9671",
                                     "name": "Tune failure rate at runtime (CQRS command)",
                                     "request": {
                                         "name": "Tune failure rate at runtime (CQRS command)",
@@ -340,7 +340,7 @@
                                     },
                                     "response": [
                                         {
-                                            "id": "9cdf37cb-bde9-4ea3-8740-bbda774b6969",
+                                            "id": "37a51046-48f0-4c74-bde0-bb4701306b41",
                                             "name": "200",
                                             "originalRequest": {
                                                 "url": {
@@ -389,7 +389,7 @@
                     "description": "",
                     "item": [
                         {
-                            "id": "07170ad1-7a7b-46fd-aa6c-1ef7c20fa189",
+                            "id": "4dbd2da2-2651-4ea6-8342-6f0ed555815d",
                             "name": "Echo payload via CQRS command + flaky upstream simulation",
                             "request": {
                                 "name": "Echo payload via CQRS command + flaky upstream simulation",
@@ -435,7 +435,7 @@
                             },
                             "response": [
                                 {
-                                    "id": "6496d5e5-2366-4a58-b924-f3b77d231835",
+                                    "id": "b14e9a05-b506-44a0-955c-f48fee0276f9",
                                     "name": "200",
                                     "originalRequest": {
                                         "url": {
@@ -501,7 +501,7 @@
         }
     ],
     "info": {
-        "_postman_id": "23c6e8ff-2703-4ba5-9638-189fb6d1507b",
+        "_postman_id": "c1ed0b5a-d4f0-4b54-afb2-2415f449f10b",
         "name": "Assessment — Channel & Upstream",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
         "description": {

@@ -1,11 +1,11 @@
-import { describe, expect, it, beforeEach, afterEach } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { CqrsModule } from "@nestjs/cqrs";
-import { GetUpstreamStatusHandler } from "./get-upstream-status.handler.js";
-import { GetUpstreamStatusQuery } from "./get-upstream-status.query.js";
-import { InMemoryFailureRateRepository } from "../../infrastructure/in-memory-failure-rate.repository.js";
-import { FailureRate } from "../../domain/value-objects/failure-rate.vo.js";
-import { FAILURE_RATE_REPOSITORY } from "../../infrastructure/tokens.js";
+import { GetUpstreamStatusHandler } from "../../../../../../src/contexts/upstream/application/queries/get-upstream-status.handler.js";
+import { GetUpstreamStatusQuery } from "../../../../../../src/contexts/upstream/application/queries/get-upstream-status.query.js";
+import { InMemoryFailureRateRepository } from "../../../../../../src/contexts/upstream/infrastructure/in-memory-failure-rate.repository.js";
+import { FailureRate } from "../../../../../../src/contexts/upstream/domain/value-objects/failure-rate.vo.js";
+import { FAILURE_RATE_REPOSITORY } from "../../../../../../src/contexts/upstream/infrastructure/tokens.js";
 
 describe("GetUpstreamStatusHandler (Upstream BC — CQRS query)", () => {
   let moduleRef: TestingModule;
@@ -29,7 +29,7 @@ describe("GetUpstreamStatusHandler (Upstream BC — CQRS query)", () => {
     await moduleRef?.close();
   });
 
-  it("reports the seeded failure rate via the read-side", async () => {
+  it("reports the current failure rate via the read-side", async () => {
     repo.set(FailureRate.fromUnknown(0.42));
     const view = await handler.execute(new GetUpstreamStatusQuery());
     expect(view).toEqual({ status: "ok", service: "upstream", failureRate: 0.42 });

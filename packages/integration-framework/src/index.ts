@@ -20,4 +20,11 @@ export {
   serializeTraceparent,
   type TraceContext,
 } from "./tracing.js";
-export { IntegrationHttpClient, type HttpRequest, type HttpResult, type HttpMethod } from "./http-client.js";
+export {
+  IntegrationHttpClient,
+  shouldRetryError,
+  normalizeBreakerError,
+  type HttpRequest,
+  type HttpResult,
+  type HttpMethod,
+} from "./http-client.js";

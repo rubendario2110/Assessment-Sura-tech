@@ -2,6 +2,11 @@
 
 Run a strict assessment review using `review-agent`.
 
+Mandatory routing:
+- Delegate this command to `review-agent`.
+- If `review-agent` cannot be invoked, stop and report `routing-blocked`.
+- At the beginning of execution, explicitly state: `runner=review-agent`.
+
 Objective:
 1. Validate outputs against all specs (`A/B/C/D`) and acceptance criteria.
 2. Prioritize findings over summaries.

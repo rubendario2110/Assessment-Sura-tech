@@ -2,6 +2,11 @@
 
 Create a 12-week Scrum plan from the assessment specs.
 
+Mandatory routing:
+- Delegate this command to `planning-agent`.
+- If `planning-agent` cannot be invoked, stop and report `routing-blocked`.
+- At the beginning of execution, explicitly state: `runner=planning-agent`.
+
 Objective:
 1. Build a complete Scrum plan for 12 weeks using 6 sprints (2 weeks each).
 2. Cover all assessment sections (A/B/C/D) with traceable backlog items.
@@ -52,3 +57,4 @@ Expected output in chat:
 - `Plan summary` (S1..S6)
 - `Total estimate` (story points + hours)
 - `Top risks`
+- `Evidence file updated`

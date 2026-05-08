@@ -1,5 +1,5 @@
 import type { Provider } from "@nestjs/common";
-import { IntegrationHttpClient, createLogger, loadIntegrationConfig } from "../../../framework/index.js";
+import { IntegrationHttpClient, createLogger, loadIntegrationConfig } from "@assessment/integration-framework";
 
 export const integrationHttpClientProvider: Provider = {
   provide: IntegrationHttpClient,

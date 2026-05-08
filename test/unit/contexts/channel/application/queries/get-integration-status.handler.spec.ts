@@ -1,13 +1,13 @@
-import { describe, expect, it, beforeEach, afterEach } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { CqrsModule } from "@nestjs/cqrs";
-import { GetIntegrationStatusHandler } from "./get-integration-status.handler.js";
-import { GetIntegrationStatusQuery } from "./get-integration-status.query.js";
+import { GetIntegrationStatusHandler } from "../../../../../../src/contexts/channel/application/queries/get-integration-status.handler.js";
+import { GetIntegrationStatusQuery } from "../../../../../../src/contexts/channel/application/queries/get-integration-status.query.js";
 import {
   IntegrationHttpClient,
   createLogger,
   loadIntegrationConfig,
-} from "../../../../framework/index.js";
+} from "@assessment/integration-framework";
 
 describe("GetIntegrationStatusHandler (Channel BC — CQRS query)", () => {
   let moduleRef: TestingModule;

@@ -1,11 +1,11 @@
-import { describe, expect, it, beforeEach, afterEach } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { CqrsModule } from "@nestjs/cqrs";
-import { UpdateFailureRateHandler } from "./update-failure-rate.handler.js";
-import { UpdateFailureRateCommand } from "./update-failure-rate.command.js";
-import { FailureRate } from "../../domain/value-objects/failure-rate.vo.js";
-import { InMemoryFailureRateRepository } from "../../infrastructure/in-memory-failure-rate.repository.js";
-import { FAILURE_RATE_REPOSITORY } from "../../infrastructure/tokens.js";
+import { UpdateFailureRateHandler } from "../../../../../../src/contexts/upstream/application/commands/update-failure-rate.handler.js";
+import { UpdateFailureRateCommand } from "../../../../../../src/contexts/upstream/application/commands/update-failure-rate.command.js";
+import { FailureRate } from "../../../../../../src/contexts/upstream/domain/value-objects/failure-rate.vo.js";
+import { InMemoryFailureRateRepository } from "../../../../../../src/contexts/upstream/infrastructure/in-memory-failure-rate.repository.js";
+import { FAILURE_RATE_REPOSITORY } from "../../../../../../src/contexts/upstream/infrastructure/tokens.js";
 
 describe("UpdateFailureRateHandler (Upstream BC — CQRS command)", () => {
   let moduleRef: TestingModule;

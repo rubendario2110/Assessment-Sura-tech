@@ -8,19 +8,28 @@
   },
   "packageManager": "pnpm@10.23.0",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build:framework": "pnpm --filter @assessment/integration-framework build",
+    "build:app": "tsc -p tsconfig.build.json",
+    "build": "pnpm build:framework && pnpm build:app",
     "start:channel": "pnpm build && node dist/contexts/channel/main.js",
     "start:upstream": "pnpm build && node dist/contexts/upstream/main.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "test:reliability": "pnpm build && tsx src/test/reliability-test.ts",
     "openapi:generate": "pnpm build && node dist/scripts/generate-openapi.js",
     "postman:generate": "node node_modules/openapi-to-postmanv2/bin/openapi2postmanv2.js -s docs/api/openapi.json -o docs/postman/assessment.postman_collection.json -p",
     "docs:api": "pnpm openapi:generate && pnpm postman:generate",
+    "demo:up": "docker compose -f docker-compose.demo.yml up -d",
+    "demo:down": "docker compose -f docker-compose.demo.yml down -v",
+    "demo:config": "docker compose -f docker-compose.demo.yml config",
     "sdd:start": "echo \"Run /specs -> /plan -> /architecture -> /implementation in Cursor.\"",
     "sdd:review": "echo \"Run /review in Cursor and verify docs/evidence/review-agent-evidence.md.\""
   },
   "dependencies": {
+    "@assessment/integration-framework": "workspace:*",
     "@fastify/swagger": "^9.7.0",
     "@fastify/swagger-ui": "^5.2.6",
     "@nestjs/common": "^11.1.9",
@@ -34,15 +43,19 @@
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
+    "@eslint/js": "^9.18.0",
     "@jest/globals": "^30.4.1",
     "@nestjs/testing": "^11.1.19",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.15.18",
     "@types/opossum": "^8.1.9",
+    "eslint": "^9.18.0",
+    "globals": "^15.15.0",
     "jest": "^30.4.1",
     "openapi-to-postmanv2": "^6.0.1",
     "ts-jest": "^29.4.9",
     "tsx": "^4.20.6",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.20.0"
   }
 }

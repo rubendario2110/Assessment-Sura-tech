@@ -1,5 +1,5 @@
 import { IQueryHandler, QueryHandler } from "@nestjs/cqrs";
-import { IntegrationHttpClient } from "../../../../framework/index.js";
+import { IntegrationHttpClient } from "@assessment/integration-framework";
 import {
   GetIntegrationStatusQuery,
   type IntegrationStatusView,
