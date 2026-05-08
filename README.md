@@ -46,6 +46,13 @@ Expected generated/updated files:
 - `specs/C-demo-service.spec.md`
 - `specs/D-tdr.spec.md`
 
+## Note on `/plan`
+
+`/plan` is configured to create/update a 12-week Scrum plan with epics, user stories, tasks, and estimates.
+Expected generated/updated files:
+- `docs/plan-scrum.md`
+- `docs/backlog.md`
+
 ## Evidence Standard (Mandatory for all agents)
 
 All agents must leave persistent evidence on every execution by appending a new entry in their corresponding file under `docs/evidence/`.
