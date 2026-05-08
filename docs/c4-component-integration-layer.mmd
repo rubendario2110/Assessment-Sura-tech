@@ -1,0 +1,138 @@
+%% C4 - Component (Level 3)
+%% Container in focus: Integration Layer
+%% Hexagonal/Clean inside; resilience controls explicit per component.
+
+flowchart TB
+    classDef inbound fill:#1168BD,stroke:#0B4884,color:#ffffff
+    classDef component fill:#85BBF0,stroke:#5D82A8,color:#000000
+    classDef policy fill:#FFE699,stroke:#BF8F00,color:#000000
+    classDef adapter fill:#A9D08E,stroke:#548235,color:#000000
+    classDef datastore fill:#5B9BD5,stroke:#3F6F9C,color:#ffffff
+    classDef external fill:#999999,stroke:#6B6B6B,color:#ffffff
+    classDef ops fill:#13A89E,stroke:#0E7F77,color:#ffffff
+
+    %% Callers (other containers)
+    quoting["Quoting Service"]:::inbound
+    policy["Policy Service"]:::inbound
+    payments["Payments Service"]:::inbound
+    notify["Notifications Worker"]:::inbound
+    catalog["Catalog/Reference Service"]:::inbound
+
+    subgraph INTEG["Integration Layer (Container)"]
+        direction TB
+
+        subgraph API["Inbound API (Hexagonal port)"]
+            sdk["Framework Client SDK<br/><i>src/framework/index.ts</i><br/>Public API: client.execute(req, opts)"]:::component
+            errors["Typed Error Model<br/><i>TimeoutError · CircuitOpenError · UpstreamError · ValidationError</i>"]:::component
+        end
+
+        subgraph CORE["Resilience Pipeline (composition order)"]
+            direction LR
+            cfg["Centralized Config<br/><i>src/framework/config.ts</i><br/>env-driven, fail-fast"]:::component
+            idemp["Idempotency<br/><i>key gen + header propagation</i>"]:::policy
+            bulk["Bulkhead<br/><i>per-dependency semaphore</i>"]:::policy
+            cb["Circuit Breaker (opossum)<br/><i>OPEN/HALF_OPEN/CLOSED</i>"]:::policy
+            retry["Retry + Backoff + Jitter<br/><i>retry-budget guarded</i>"]:::policy
+            tmo["Timeout + AbortController<br/><i>safe cancellation</i>"]:::policy
+            cache["Cache-Aside (read-only)<br/><i>single-flight, TTL+jitter</i>"]:::policy
+        end
+
+        subgraph OBS["Observability"]
+            log["Structured JSON Logger<br/><i>traceId, dependency, attempt, outcome, latencyMs</i>"]:::ops
+            trc["Trace Propagation<br/><i>W3C traceparent (OTel-compatible)</i>"]:::ops
+        end
+
+        subgraph TRANS["Outbound Transport"]
+            http["HTTP Transport<br/><i>fetch + AbortController</i>"]:::component
+            msg["Async Publisher<br/><i>Service Bus / Event Grid client</i>"]:::component
+        end
+
+        subgraph ACL["Anti-Corruption Layer (per legacy)"]
+            adptCoreP["Adapter: Core Policy"]:::adapter
+            adptCoreC["Adapter: Core Customer"]:::adapter
+            adptPay["Adapter: Payments Gateway"]:::adapter
+            adptKyc["Adapter: KYC / Fraud"]:::adapter
+            adptCat["Adapter: Catalog Source"]:::adapter
+        end
+    end
+
+    %% Stateful supports
+    redis[("Azure Cache for Redis<br/>idempotency store + cache-aside")]:::datastore
+    kv[("Azure Key Vault<br/>secrets, rotated")]:::datastore
+    appcfg[("Azure App Configuration<br/>per-country thresholds")]:::datastore
+
+    %% Externals
+    coreP[("Core Policy")]:::external
+    coreC[("Core Customer")]:::external
+    payGw[("Payments Gateway")]:::external
+    kyc[("Fraud / KYC")]:::external
+    catSrc[("Catalog Source")]:::external
+    sb[("Azure Service Bus")]:::external
+    eg[("Azure Event Grid")]:::external
+    appi[("Application Insights")]:::external
+
+    %% Caller dependency on SDK
+    quoting --> sdk
+    policy --> sdk
+    payments --> sdk
+    notify --> sdk
+    catalog --> sdk
+
+    %% Composition pipeline (each call goes through these in order)
+    sdk --> idemp --> bulk --> cb --> retry --> tmo --> cache
+    cache --> http
+    cache --> msg
+
+    %% Cross-cutting
+    cfg -. config .- sdk
+    cfg -. config .- cb
+    cfg -. config .- retry
+    cfg -. config .- tmo
+    cfg -. config .- bulk
+    cfg -. config .- cache
+    cfg <-. load .- appcfg
+
+    %% Observability cross-cutting
+    sdk -. emit .-> log
+    sdk -. propagate .-> trc
+    cb -. events .-> log
+    retry -. events .-> log
+    tmo -. events .-> log
+    bulk -. events .-> log
+    log -. ship .-> appi
+    trc -. export .-> appi
+
+    %% Idempotency + cache backed by Redis
+    idemp <--> redis
+    cache <--> redis
+
+    %% Errors surface back to SDK
+    tmo -. throw .-> errors
+    cb -. throw .-> errors
+    retry -. throw .-> errors
+    bulk -. throw .-> errors
+
+    %% Transport to ACLs to externals
+    http --> adptCoreP --> coreP
+    http --> adptCoreC --> coreC
+    http --> adptPay --> payGw
+    http --> adptKyc --> kyc
+    http --> adptCat --> catSrc
+    msg --> sb
+    msg --> eg
+
+    %% Secrets
+    sdk <-. fetch .- kv
+    adptPay <-. credentials .- kv
+    adptKyc <-. credentials .- kv
+
+    %% Notes (rendered as annotations)
+    %% NFR mapping:
+    %%   Timeout (tmo)        -> NFR-Latency-Bound, prevents hangs
+    %%   Retry (retry)        -> NFR-Transient-Tolerance, exponential + full jitter
+    %%   Circuit Breaker (cb) -> NFR-Isolation, prevents cascading failure (opossum, mandatory)
+    %%   Bulkhead (bulk)      -> NFR-Resource-Isolation, per-dependency concurrency cap
+    %%   Idempotency (idemp)  -> NFR-Mutation-Safety, dedupe via Redis store + header
+    %%   Cache (cache)        -> NFR-Read-Latency, cache-aside w/ stampede protection
+    %%   Logger (log)         -> NFR-Triage, JSON, no PII
+    %%   Tracing (trc)        -> NFR-Correlation, W3C traceparent end-to-end

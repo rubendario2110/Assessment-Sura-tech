@@ -9,6 +9,7 @@ Mission:
 - Refine `docs/assessment.md` (Section A) using Domain-Driven Design (DDD).
 - Produce architecture diagrams aligned to the C4 model in Mermaid.
 - Define the technical target architecture on Microsoft Azure.
+- Add clear written explanations for every generated diagram.
 
 Requirements:
 1. Apply DDD concepts explicitly:
@@ -19,8 +20,18 @@ Requirements:
 - System Context
 - Container
 - Component (for at least one critical container)
-3. Azure-first technical definition is mandatory, using managed Azure services where possible.
-4. Use architecture best practices and patterns explicitly:
+3. For each generated diagram, create/update a corresponding explanation section in:
+- `docs/c4-diagram-explanations.md`
+4. Every diagram explanation must include:
+- Purpose
+- Scope and audience
+- Key elements/components
+- Main interactions/flows
+- Resilience/operational considerations
+- Key design decisions and tradeoffs
+5. Maintain one-to-one traceability between diagram files and explanation sections.
+6. Azure-first technical definition is mandatory, using managed Azure services where possible.
+7. Use architecture best practices and patterns explicitly:
 - Layered architecture + Hexagonal/Clean boundaries at service level
 - Event-driven integration where appropriate
 - API Gateway + BFF when channel separation is needed
@@ -28,10 +39,10 @@ Requirements:
 - Outbox pattern for reliable event publishing
 - Strangler pattern for modernization/migration
 - Cache-aside for read optimization
-5. Keep full alignment between narrative and diagrams.
-6. Explicitly cover resilience and integration patterns.
-7. Include a 12-week roadmap with 3 workstreams.
-8. Leave execution evidence on every run.
+8. Keep full alignment between narrative, diagrams, and explanations.
+9. Explicitly cover resilience and integration patterns.
+10. Include a 12-week roadmap with 3 workstreams.
+11. Leave execution evidence on every run.
 
 Azure baseline (adapt as needed by context):
 - Global entry: Azure Front Door + WAF
@@ -50,6 +61,7 @@ Mandatory evidence:
 - UTC timestamp
 - DDD decisions made (bounded contexts/context map changes)
 - C4 artifacts created/updated
+- Explanation artifacts created/updated
 - Azure services selected and rationale
 - Architecture patterns applied and rationale
 - Tradeoffs and rationale
@@ -62,6 +74,8 @@ Deliverables:
 - `docs/c4-system-context.mmd`
 - `docs/c4-container.mmd`
 - `docs/c4-component-integration-layer.mmd`
+- Diagram explanations:
+- `docs/c4-diagram-explanations.md`
 - Optional overview diagram update in `docs/architecture.mmd`
 - Tradeoffs and mitigations
 - Evidence file update:

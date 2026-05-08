@@ -1,0 +1,149 @@
+%% C4 - Container (Level 2)
+%% Multi-Country Digital Direct Channel - Active-Active Multi-Region on Azure
+%% Notation: flowchart with subgraphs as containers / boundaries.
+
+flowchart TB
+    classDef person fill:#08427B,stroke:#073B6F,color:#ffffff
+    classDef container fill:#1168BD,stroke:#0B4884,color:#ffffff
+    classDef datastore fill:#5B9BD5,stroke:#3F6F9C,color:#ffffff,shape:cylinder
+    classDef messaging fill:#7030A0,stroke:#4A1F70,color:#ffffff
+    classDef external fill:#999999,stroke:#6B6B6B,color:#ffffff
+    classDef ops fill:#13A89E,stroke:#0E7F77,color:#ffffff
+
+    customer(["Customer<br/>web/mobile"]):::person
+    partner(["Broker / Partner<br/>B2B"]):::person
+
+    subgraph EDGE["Global Edge (Azure)"]
+        afd["Azure Front Door + WAF<br/><i>geo-routing, TLS, DDoS, country affinity</i>"]:::container
+    end
+
+    subgraph REGION_A["Azure Region A (active)"]
+        apimA["Azure API Management<br/><i>OAuth2/JWT, throttling, policies</i>"]:::container
+        bffWebA["Web BFF<br/><i>NestJS + Fastify</i>"]:::container
+        bffMobA["Mobile BFF<br/><i>NestJS + Fastify</i>"]:::container
+        partnerApiA["Partner API<br/><i>NestJS + Fastify, mTLS</i>"]:::container
+
+        subgraph DOMAIN_A["Domain Services (Container Apps / AKS)"]
+            quoteA["Quoting Service"]:::container
+            policyA["Policy Service"]:::container
+            paymentA["Payments Service"]:::container
+            notifyA["Notifications Worker"]:::container
+            catalogA["Catalog/Reference Service"]:::container
+            countryA["Country/Locale Service"]:::container
+        end
+
+        intgA["Integration Layer<br/><i>reusable framework + ACL adapters</i>"]:::container
+
+        sbA["Azure Service Bus<br/><i>queues + topics</i>"]:::messaging
+        egA["Azure Event Grid<br/><i>system events</i>"]:::messaging
+
+        sqlA[("Azure SQL<br/>Policy/Payments<br/><i>active geo-replication</i>")]:::datastore
+        cosmosA[("Cosmos DB<br/>Quoting drafts / Catalog reads<br/><i>multi-region writes</i>")]:::datastore
+        redisA[("Azure Cache for Redis<br/>idempotency keys + cache-aside")]:::datastore
+        appCfgA[("Azure App Configuration<br/><i>flags + per-country config</i>")]:::datastore
+        kvA[("Azure Key Vault")]:::datastore
+    end
+
+    subgraph REGION_B["Azure Region B (active)"]
+        apimB["Azure API Management"]:::container
+        bffWebB["Web BFF"]:::container
+        bffMobB["Mobile BFF"]:::container
+        partnerApiB["Partner API"]:::container
+        intgB["Integration Layer"]:::container
+        sqlB[("Azure SQL (replica)")]:::datastore
+        cosmosB[("Cosmos DB (multi-region)")]:::datastore
+        redisB[("Redis (per-region)")]:::datastore
+    end
+
+    subgraph EXT["External Systems"]
+        coreP[("Core Policy / Underwriting")]:::external
+        coreC[("Core Customer / CRM")]:::external
+        payGw[("Payments Gateway")]:::external
+        idp[("Microsoft Entra External ID")]:::external
+        notifSvc[("Email / SMS / Push providers")]:::external
+        catSrc[("Product Catalog / Rates source")]:::external
+        fraud[("Fraud / KYC")]:::external
+    end
+
+    subgraph OPS["Operations & Observability (Azure)"]
+        appi["Application Insights<br/>+ Azure Monitor + Log Analytics"]:::ops
+        otel["OpenTelemetry Collector<br/><i>traces/metrics/logs</i>"]:::ops
+        ghaz["GitHub Actions / Azure DevOps<br/>+ Azure Policy"]:::ops
+    end
+
+    %% Edge ingress
+    customer -- HTTPS --> afd
+    partner -- HTTPS+mTLS --> afd
+    afd -- "geo + health routing" --> apimA
+    afd -- "geo + health routing" --> apimB
+
+    %% APIM to BFFs / Partner API
+    apimA --> bffWebA
+    apimA --> bffMobA
+    apimA --> partnerApiA
+    apimB --> bffWebB
+    apimB --> bffMobB
+    apimB --> partnerApiB
+
+    %% BFF to Domain Services (Region A shown; Region B mirrors)
+    bffWebA --> quoteA
+    bffWebA --> policyA
+    bffWebA --> paymentA
+    bffMobA --> quoteA
+    bffMobA --> policyA
+    bffMobA --> paymentA
+    partnerApiA --> quoteA
+    partnerApiA --> policyA
+
+    %% Domain services to integration layer (all outbound goes here)
+    quoteA --> intgA
+    policyA --> intgA
+    paymentA --> intgA
+    catalogA --> intgA
+    notifyA --> intgA
+    countryA --> intgA
+
+    %% Integration layer to externals (with resilience controls)
+    intgA -- "sync, ACL" --> coreP
+    intgA -- "sync + events" --> coreC
+    intgA -- "sync + webhook, idempotent" --> payGw
+    intgA -- "OIDC" --> idp
+    intgA -- "notifications" --> notifSvc
+    intgA -- "cache-aside reads" --> catSrc
+    intgA -- "KYC checks" --> fraud
+
+    %% Async backbone
+    quoteA <--> sbA
+    policyA <--> sbA
+    paymentA <--> sbA
+    notifyA <--> sbA
+    sbA <-. cross-region replication .-> intgB
+    egA --> notifyA
+
+    %% Data
+    policyA <--> sqlA
+    paymentA <--> sqlA
+    quoteA <--> cosmosA
+    catalogA <--> cosmosA
+    countryA <--> appCfgA
+    intgA <--> redisA
+    intgA <--> kvA
+
+    %% Geo replication
+    sqlA <-. geo-replication .-> sqlB
+    cosmosA <-. multi-region writes .-> cosmosB
+
+    %% Telemetry
+    bffWebA -. OTel .-> otel
+    bffMobA -. OTel .-> otel
+    quoteA -. OTel .-> otel
+    policyA -. OTel .-> otel
+    paymentA -. OTel .-> otel
+    intgA -. OTel .-> otel
+    otel --> appi
+
+    %% Delivery / governance
+    ghaz -- deploy --> apimA
+    ghaz -- deploy --> apimB
+    ghaz -- deploy --> intgA
+    ghaz -- deploy --> intgB

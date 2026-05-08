@@ -72,6 +72,7 @@ Expected C4 outputs:
 - `docs/c4-system-context.mmd`
 - `docs/c4-container.mmd`
 - `docs/c4-component-integration-layer.mmd`
+- `docs/c4-diagram-explanations.md` (mandatory explanations for each generated diagram)
 
 Optional overview:
 - `docs/architecture.mmd`
