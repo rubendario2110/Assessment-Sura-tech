@@ -77,6 +77,7 @@ Reveal the runtime topology: what containers exist, where they run, and how they
 - Async backbone absorbs traffic spikes and decouples Notifications and downstream events from the customer-facing path.
 - Azure App Configuration exposes timeouts, retries, CB thresholds, bulkhead limits, and cache TTLs at runtime so we can tune without redeploys.
 - All secrets and credentials live in Key Vault with rotation policies; ACL adapters fetch credentials lazily and cache short-lived tokens.
+- **SLO / SLI alignment (US-008)**: Journey-level availability and latency SLOs in `docs/assessment.md` Section A.1.4 are implemented as **Log Analytics / Application Insights** queries and workbooks over OpenTelemetry spans and structured logs from BFFs, domain services, and the Integration Layer (correlation via `traceId`, dependency attribution via Integration Layer fields).
 
 ### Key design decisions and tradeoffs
 - Azure Container Apps is the default compute for stateless services; AKS is reserved for services that need finer scheduling/networking. Tradeoff: two compute options to operate, mitigated by shared platform standards (CI/CD, OTel, base images).
@@ -156,6 +157,7 @@ Provide a single one-pager that communicates the architecture across edge, chann
 - One-page view that highlights the Integration Layer as the place where all resilience is enforced.
 - Active-active multi-region implied by APIM/Domain/Integration replication; per-region data stores synced via geo-replication or multi-region writes.
 - Observability and delivery are shown as first-class concerns, not afterthoughts.
+- **SLO dashboards**: Application Insights + Azure Monitor host journey-level SLIs and burn-rate alerts aligned with Section A.1.4 (see also Container diagram explanation § Resilience).
 
 ### Key design decisions and tradeoffs
 - Keeping the executive overview simple intentionally hides region-pair detail and per-domain consistency choices; for those, readers are pointed to the L2/L3 diagrams.
@@ -168,4 +170,5 @@ Provide a single one-pager that communicates the architecture across edge, chann
 - L1 changes (new actor, new external system, new country) trigger updates in L1 and the executive overview.
 - L2 changes (new container, region split, datastore change) trigger updates in L2 and Section A.1.2 narrative.
 - L3 changes inside the Integration Layer (new policy, new adapter) trigger updates in L3 and `src/framework/*` references in the diagram annotations.
+- **SLO catalog changes (Section A.1.4)** do not redraw diagrams but **must** stay consistent with OTel export paths shown in L2/L3 (Application Insights as SLI sink).
 - Architecture-agent evidence captures every revision with timestamp and rationale (`docs/evidence/architecture-agent-evidence.md`).

@@ -102,3 +102,35 @@ Use this file as an append-only execution log.
 - Open questions:
   - Same set as the previous entry (countries in scope, Azure landing zone maturity, legacy SLAs, event backbone reuse, IdP migration path, PCI scope).
   - New: Should the diagram explanations be auto-generated from the `.mmd` annotations in the future to reduce drift risk?
+
+---
+
+## Entry: 2026-05-08T22:15:00Z — US-008 SLO catalog + Section D TDRs (US-023 / US-024)
+- Timestamp (UTC): 2026-05-08T22:15:00Z
+- Trigger: `/architecture` for **US-008** + **Section D** (Specs D / backlog US-023, US-024).
+- DDD decisions made:
+  - No change to bounded-context taxonomy; **reinforced** that Observability is the SLI sink for journey metrics and Integration remains the enforcement point for resilience SLIs (dependency-level errors, CB transitions).
+  - **US-008**: Formalized three **critical journeys** (J1 Quote-to-bind, J2 Issue policy, J3 Pay premium) with SLI definitions (availability, P95 latency on sync segment, integration-attributed error rate), **99.95%** monthly SLO targets aligned with NFRs, illustrative error budgets (~22 min/month equivalent), and **Green / Yellow / Red** error-budget policy with governance cadence.
+  - **US-023 (TDR D.1)**: **Hybrid integration model** — centralized reusable Integration Layer + platform governance; decentralized ownership of domain-specific ACL adapters by stream-aligned teams.
+  - **US-024 (TDR D.2)**: **Hybrid sync/async** — synchronous boundaries for customer confirmations and latency-SLO segments; asynchronous processing for side effects; Outbox + Service Bus for reliable post-commit events (consistent with existing Saga narrative).
+- C4 artifacts created/updated:
+  - **No structural change** to `docs/c4-system-context.mmd`, `docs/c4-container.mmd`, `docs/c4-component-integration-layer.mmd` — narrative alignment sufficient (SLIs consumed via existing OTel → Application Insights paths).
+  - **`docs/architecture.mmd`**: Application Insights node relabeled to surface **SLO dashboards + alerts** explicitly on the executive overview.
+- Explanation artifacts created/updated:
+  - **`docs/c4-diagram-explanations.md`**: L2 Container § Resilience — added **SLO / SLI alignment (US-008)** paragraph (Log Analytics / App Insights queries over OTel + Integration Layer logs). L4 Executive overview § Resilience — added SLO dashboard cross-reference. **How These Diagrams Stay In Sync** — new bullet: Section A.1.4 changes must remain consistent with OTel export paths (App Insights as SLI sink).
+- Azure services selected and rationale:
+  - **Application Insights + Log Analytics + Azure Monitor** — journey SLIs, burn-rate alerts, workbooks; fits existing OTel Collector topology in L2.
+  - No new Azure SKU introduced; catalog assumes existing instrumentation contracts (`journey_id` / `critical_path` span attributes).
+- Architecture patterns applied and rationale:
+  - **Error budgeting** — ties reliability investments to product decisions (freeze releases when budget burns).
+  - **Hybrid integration + hybrid messaging** — avoids false dichotomies; matches Team Topologies platform-enabling-stream pattern and practical insurance UX (immediate confirmation where regulated or expected).
+- Tradeoffs and rationale:
+  - **SLO granularity**: Journey-level SLOs aggregate multiple containers — simpler for stakeholders; may obscure single-service regressions — mitigated by RED metrics per service under each journey dashboard.
+  - **TDR brevity**: One-page constraint favors clarity over exhaustive vendor comparison — detailed RFCs can live in annexes if the program scales.
+- Risks and mitigations:
+  - **Instrumentation inconsistency** — SLIs wrong if teams omit span tags. Mitigation: schema lint in CI; golden trace samples in non-prod.
+  - **Regulatory interpretation** — some markets may mandate synchronous audit artifacts. Mitigation: Section D.2 risk note + per-country legal review.
+- Open questions:
+  - Baseline SLI measurements from production-like environments (not yet available in assessment scope).
+  - Whether to add a fourth journey (e.g., endorse/amend) as catalog maturity increases.
+

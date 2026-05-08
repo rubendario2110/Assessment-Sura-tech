@@ -67,9 +67,49 @@ Domain events (high level):
 - **Availability**: 99.95% target for critical journeys (quote, issue, pay). Active-active multi-region; health probes drive failover.
 - **Scalability**: Stateless services scaled by HTTP/queue depth; KEDA autoscaling for workers; Cosmos DB and Service Bus scale independently.
 - **Resilience**: Every outbound call goes through the reusable Integration Layer (timeouts, retries with backoff + jitter, circuit breaker via `opossum`, bulkheads, idempotency, optional cache-aside). Async messaging absorbs spikes and shields the channel from slow upstreams.
-- **Observability**: Structured JSON logs, RED/USE metrics, end-to-end traces via W3C `traceparent`. SLOs are defined per critical journey; error budgets drive release decisions.
+- **Observability**: Structured JSON logs, RED/USE metrics, end-to-end traces via W3C `traceparent`. SLOs are defined per critical journey; error budgets drive release decisions (**catalog:** Section A.1.4).
 - **Disaster Recovery**: RTO ≤ 30 min, RPO ≤ 5 min for critical data. Periodic DR drills; runbooks per failure mode.
 - **Security & compliance**: TLS in transit, encryption at rest, secret rotation in Key Vault, per-country data residency by region pinning, Azure Policy guardrails.
+
+#### A.1.4 SLO / SLI catalog and error budgets (US-008)
+
+This catalog ties the **99.95% availability** NFR and **P95 &lt; 400 ms** latency goal to **measurable SLIs** on Azure (Application Insights + Log Analytics + Azure Monitor workbooks). SLIs are computed per **journey** (user- or system-initiated slice across BFF → domain services → Integration Layer → externals), using OpenTelemetry spans and request telemetry tagged with `journey_id` (or equivalent routing dimension).
+
+**Critical journeys (minimum set)**
+
+| Journey | User outcome | Primary containers | SLI sources (Azure) |
+| --- | --- | --- | --- |
+| **J1 — Quote to bind** | Customer obtains a priced quote and reaches bind-ready state for a selected product/country. | Web/Mobile BFF → Quoting → Catalog (read) → Integration ACL to catalog/rates sources | APIM + BFF + Quoting `server.duration` P95; availability = `count(success) / count(all)` for journey span |
+| **J2 — Issue policy** | Policy is issued and confirmed to the customer (authoritative state in Policy context). | BFF → Quoting/Policy saga → Azure SQL → Outbox → Service Bus | End-to-end trace completeness; Policy API success ratio excluding 4xx validation |
+| **J3 — Pay premium** | Premium authorization/capture completes and customer sees confirmation. | BFF → Payments → Payments Gateway via Integration Layer → webhook/async reconciliation | Payments operation success rate; P95 for sync confirmation path; duplicate capture rate (should be ~0 with idempotency) |
+
+**SLI definitions (examples)**
+
+| SLI | Definition | Notes |
+| --- | --- | --- |
+| **Availability** | Ratio of successful journey completions to attempts over the window. **Success** = HTTP 2xx/3xx or domain success without technical failure; **exclude** client validation errors (4xx) from the denominator unless they indicate a defect. | Measured monthly per journey; regional rollup optional. |
+| **Latency** | **P95** server-side duration for the synchronous segment of the journey (span marked `critical_path=true`). | Aligns with NFR P95 &lt; 400 ms for sync APIs; catalog-heavy reads may use a separate SLO tier if justified. |
+| **Error rate** | Share of journey attempts ending in 5xx, timeout, or circuit-open fast-fail attributable to the channel/integration stack. | Correlated with Integration Layer logs (`upstream_http`, `circuit_breaker`). |
+
+**SLO targets (starting points)**
+
+| Journey | Availability SLO (monthly) | Latency SLO (sync segment) | Error budget (monthly, illustrative) |
+| --- | --- | --- | --- |
+| J1 Quote to bind | **99.95%** | P95 **&lt; 400 ms** | ~22 minutes downtime equivalent |
+| J2 Issue policy | **99.95%** | P95 **&lt; 400 ms** on sync confirmation API | same order of magnitude |
+| J3 Pay premium | **99.95%** | P95 **&lt; 400 ms** on payment confirmation path | same order of magnitude |
+
+*Exact budget minutes derive from `(1 − SLO) × window length`; teams calibrate alerts on **burn rate**, not static thresholds only.*
+
+**Error budget policy**
+
+1. **Measurement**: Rolling **30-day** window per journey (calendar month for reporting). Burn rate = rate of budget consumption vs ideal (multi-window alerts in Azure Monitor / App Insights recommended).
+2. **Green**: Budget remaining &gt; 50% at mid-window — normal feature velocity.
+3. **Yellow**: Budget 25–50% — reliability tasks prioritized in sprint; freeze low-value releases.
+4. **Red**: Budget exhausted or projected exhaustion within days — stop non-critical deployments; incident review mandatory; focus on resilience backlog (timeouts, CB tuning, bulkheads, dependency health).
+5. **Governance**: Weekly SLO review with Product + SRE; Section D Decision 2 defines sync vs async boundaries that affect how latency SLOs apply.
+
+This catalog is consistent with the observability path in Section A.1.2 (`OpenTelemetry → Application Insights`) and with the Integration Layer controls in Section A.2.
 
 ### A.2 — Integration Patterns
 
@@ -134,7 +174,7 @@ Workstream exit criteria:
 - **Active-active complexity vs availability**: Multi-region active-active raises operational burden (replication conflicts, cost). Mitigation: document conflict-resolution policy; start with read-heavy contexts replicated, write-heavy contexts pinned and failed over.
 - **`opossum` coupling**: Mandated CB library introduces vendor coupling. Mitigation: isolate behind framework wrapper; expose generic CB interface to callers.
 - **OTel exporter scope**: Full OTel pipeline may be excessive for the assessment. Mitigation: ship `traceparent` propagation + structured logs; treat exporter to App Insights as roadmap item.
-- **Sync vs async for critical flows**: Pure event-driven introduces eventual consistency in customer-facing UX. Mitigation: synchronous for the read path of critical journeys; async for side effects (notifications, downstream propagation). Decision rationalized in Section D.
+- **Sync vs async for critical flows**: Pure event-driven introduces eventual consistency in customer-facing UX. Mitigation: synchronous for the read path of critical journeys; async for side effects (notifications, downstream propagation). **Formal decision:** Section D — TDR 2 (Event-driven vs synchronous for critical flows).
 - **Per-country regulatory variability**: Could fragment configuration. Mitigation: per-country overrides via App Configuration with strict schema and review.
 
 ---
@@ -228,6 +268,10 @@ Expected stdout highlights JSON lines where **`breakerEvent` transitions through
 2. After cool-down (`OPOSSUM_RESET_TIMEOUT_MS`), **`halfOpen`** probe runs; successful echo **`close`**s the breaker.
 3. Structured logs (`circuit_breaker`) capture transitions for interviews (`open`, `halfOpen`, `close`, `failure`, `success`).
 
+### Operational runbook (US-026)
+
+`docs/runbook.md` documents triage steps for each demo failure mode (`circuit_open`, `upstream`, `timeout`, `bulkhead_full`), reproduction commands for forced failure / recovery, idempotency replay verification, and the tunable opossum knobs. The reliability harness output now embeds a structured **`breakerTimeline`** field (US-027) with timestamps and `previousState → breakerState` transitions, making OPEN → HALF_OPEN → CLOSED cycles directly auditable from the JSON summary.
+
 ### API artifacts
 
 - Machine-readable OpenAPI: `docs/api/openapi.json` (`pnpm openapi:generate`)
@@ -235,9 +279,53 @@ Expected stdout highlights JSON lines where **`breakerEvent` transitions through
 
 ## Section D — Technical Decision Record
 
-To be completed in Sprint 6. Two one-page decisions:
-1. Centralized integration platform vs decentralized team-owned integrations.
-2. Event-driven vs synchronous request/response architecture for critical flows.
+One-page decision-grade narrative covering **two** program-level architecture choices. Both align with Spec A (target architecture), Spec B (integration framework), and Section A.1.4 (SLO catalog).
+
+---
+
+### D.1 — Centralized integration platform vs decentralized team-owned integrations
+
+**Context.** The Multi-Country Digital Direct Channel must integrate with legacy cores, payment gateways, and partners across countries. Teams want autonomy and fast iteration; the program needs consistent resilience, security, and observability so SLOs in Section A.1.4 are achievable.
+
+**Options considered.**
+
+| Option | Summary | Strengths | Weaknesses |
+| --- | --- | --- | --- |
+| **A — Fully centralized** | A single integration platform team owns all adapters, routing, and partner onboarding. | One place for standards, certifications, and reuse; uniform dashboards and runbooks. | Bottleneck for delivery; domain nuance lives far from feature teams; scaling the platform team is expensive. |
+| **B — Fully decentralized** | Each domain/stream-aligned team ships and operates its own HTTP clients, retries, and partner logic. | Maximum autonomy and localized velocity. | Inconsistent resilience (retry storms, CB gaps); duplicated ACL logic; harder audits and on-call; SLO fragmentation. |
+| **C — Hybrid (platform framework + federated ownership)** | A **reusable Integration Layer** (framework SDK, ACL patterns, golden CI templates) is owned by a **platform team**; **domain teams own** bounded-context-specific adapters and release cadence behind contracts governed by architecture review + automated policy checks. | Combines standard **timeouts, retries+jitter, opossum CB, bulkheads, idempotency, traceparent** everywhere with teams retaining ownership of domain mapping and backlog. | Requires investment in platform + governance; teams must adopt the SDK contract and participate in shared observability standards. |
+
+**Decision.** Adopt **Option C — Hybrid**. Mandate outbound traffic through the shared Integration Layer (per Section A.2 and Spec B); centralize **policy, telemetry schema, and dependency tier defaults**; decentralize **adapter implementation and backlog** to stream-aligned teams with platform guardrails (design reviews, linting, smoke tests against simulators).
+
+**Consequences.** **Positive:** predictable failure modes and shared SLIs; lower audit surface for security/compliance; aligns with Azure-first ops (App Insights, Key Vault, App Configuration). **Negative:** coordination tax between platform and domains; teams may resist SDK upgrades — mitigated by semver, migration guides, and office hours. **Neutral:** partner onboarding still requires a single architectural thread through the Integration Layer, which adds latency to kickoff but reduces production incidents later.
+
+---
+
+### D.2 — Event-driven vs synchronous request/response for critical flows
+
+**Context.** Critical journeys (quote, issue, pay) need strong UX and regulatory clarity. Pure async maximizes decoupling but complicates “did it succeed?” moments for customers; pure synchronous coupling increases blast radius and tail latency.
+
+**Options considered.**
+
+| Option | Summary | Strengths | Weaknesses |
+| --- | --- | --- | --- |
+| **A — Event-driven first** | Publish commands/events; UI polls or uses WebSockets for outcome. | Scales well; absorbs spikes; fits notifications and downstream propagation. | Eventual consistency in UX; harder debugging for money movements; customer-facing “confirmation” timing unclear without extra design. |
+| **B — Synchronous only** | End-to-end HTTP/RPC until completion for every step. | Simple mental model for confirmations; easier tracing for auditors on one request ID. | Fragile under slow legacy systems; cascading failures without aggressive timeouts/CBs; poor isolation of side effects. |
+| **C — Hybrid by journey phase** | **Synchronous** request/response for **customer-visible confirmations** and **read paths** where latency SLOs apply (Section A.1.4). **Asynchronous** processing for side effects (notifications, downstream replication, analytics). **Outbox + Service Bus** for reliable events after commits (Policy/Payments). | Balances UX and resilience; matches Saga + Outbox already assumed in Section A; Integration Layer contains timeouts/CB on sync legs while async absorbs load. | Teams must classify operations explicitly (“sync boundary” vs “async continuation”); requires discipline in idempotency and duplicate-event handling. |
+
+**Decision.** Adopt **Option C — Hybrid**. Define a **sync boundary** per critical journey (e.g., payment authorization acknowledgment, policy issue confirmation number) with strict latency SLOs; push non-blocking work to queues/topics; use **outbox** for consistency between writes and events.
+
+**Consequences.** **Positive:** SLOs remain measurable on clear HTTP paths; Integration Layer patterns apply uniformly to sync outbound calls; async handles notification storms. **Negative:** dual programming model (sync + messaging) increases training and test matrix size — mitigated by templates, arch guild, and contract tests. **Risk:** country-specific regulation mandating synchronous audit trails — mitigated by durable logs + correlation IDs on both sync and async legs; revisit per country if regulators require stronger guarantees.
+
+---
+
+### D.3 — Traceability
+
+| Topic | Where reflected |
+| --- | --- |
+| Hybrid integration ownership | Section A.2 (Integration patterns), Section B (`IntegrationHttpClient`), L3 component diagram |
+| Hybrid sync/async | Section A.2 items 7–8 (async + trace), A.1.4 SLO scope for sync segments |
+| Error budgets | Section A.1.4 error budget policy |
 
 ## Submission Checklist
 
@@ -247,5 +335,5 @@ To be completed in Sprint 6. Two one-page decisions:
 - [x] Diagram explanations published in `docs/c4-diagram-explanations.md`.
 - [x] Section B — integration framework code and design notes.
 - [x] Section C — demo run instructions and failure behavior.
-- [ ] Section D — TDR (one page).
-- [ ] All evidence logs updated in `docs/evidence/`.
+- [x] Section D — TDR (one page, two decisions).
+- [x] All evidence logs updated in `docs/evidence/` (`spec`, `planning`, `architecture`, `implementation`, `review`).

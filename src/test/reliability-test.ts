@@ -3,6 +3,7 @@ import type { ChildProcess } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
+import { extractBreakerTimeline } from "./breaker-timeline.js";
 
 const channelPort = process.env.CHANNEL_PORT ?? "3100";
 const upstreamPort = process.env.UPSTREAM_PORT ?? "3101";
@@ -104,6 +105,8 @@ async function main(): Promise<void> {
       r.json(),
     );
 
+    const breakerTimeline = extractBreakerTimeline(logBreakerLines);
+
     const summary = {
       message: "reliability_harness_complete",
       sawOpen,
@@ -111,12 +114,18 @@ async function main(): Promise<void> {
       recoveryHttp: recovery.status,
       recoveryBody,
       finalStatus,
+      breakerTimeline,
       circuitBreakerLogSample: logBreakerLines.slice(0, 15),
     };
     console.log(JSON.stringify(summary, null, 2));
 
     if (!sawOpen) {
       console.error("Expected circuit breaker to reach open state under sustained upstream failure.");
+      process.exitCode = 1;
+    }
+    const sawRecovery = breakerTimeline.some((entry) => entry.breakerEvent === "close");
+    if (!sawRecovery) {
+      console.error("Expected breaker timeline to include a 'close' event after recovery.");
       process.exitCode = 1;
     }
   } finally {

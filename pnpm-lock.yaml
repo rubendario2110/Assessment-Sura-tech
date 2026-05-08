@@ -42,6 +42,9 @@ importers:
         specifier: ^7.8.2
         version: 7.8.2
     devDependencies:
+      '@jest/globals':
+        specifier: ^30.4.1
+        version: 30.4.1
       '@nestjs/testing':
         specifier: ^11.1.19
         version: 11.1.19(@nestjs/common@11.1.19(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.19(@nestjs/common@11.1.19(reflect-metadata@0.2.2)(rxjs@7.8.2))(reflect-metadata@0.2.2)(rxjs@7.8.2))

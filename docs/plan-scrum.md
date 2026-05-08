@@ -112,7 +112,7 @@ Built from `specs/*.spec.md` and `docs/assessment-input.md`. Backlog reference: 
   - T-015..T-016 Section A.1 + A.2 narrative in `docs/assessment.md` (M4: cross-linked to diagrams).
   - T-065..T-066 Logger wired into both demo services (M5: shared trace ids per request).
 - Exit criteria / DoD:
-  - `src/upstream/main.ts` and `src/channel/main.ts` start with `pnpm exec tsx`.
+  - `src/contexts/upstream/main.ts` and `src/contexts/channel/main.ts` start with `pnpm start:upstream` / `pnpm start:channel` (compile-then-run; `tsx` strips `emitDecoratorMetadata` and breaks Nest/CQRS DI).
   - `docs/assessment.md` Sections A.1 and A.2 complete and reference C4 diagrams.
   - Evidence appended.
 

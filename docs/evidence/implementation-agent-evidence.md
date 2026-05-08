@@ -131,3 +131,65 @@ Use this file as an append-only execution log.
   - Wire a sample `@EventsHandler` (e.g. structured audit log) for `UpstreamCallRejectedEvent` once observability story is picked up.
   - Replace in-memory idempotency adapter with Redis-backed implementation for multi-instance demos.
   - Add CommandBus-based controller integration tests with `@nestjs/testing` HTTP harness.
+
+---
+
+## Entry: 2026-05-08T22:02:00Z — Sprint 5 closure (US-026 + US-027 + status snapshot)
+- Timestamp (UTC): 2026-05-08T22:02:00Z
+- Node.js version used (`node -v`): v24.11.1 (project `engines.node` = `>=22`).
+- Active sprint and planned scope: **Sprint 5 (Weeks 9–10)** — Stories US-021 / US-022 / US-007 already closed; this batch finishes US-026 (runbook) and US-027 (CB transitions visible in summary). US-021/US-022 verified end-to-end after the DDD/CQRS refactor.
+- Story IDs covered: US-026, US-027 (closed); US-021, US-022 (re-validated).
+- Task IDs covered: T-067 (runbook notes), T-068 (subscribe to CB events in harness), T-069 (render transitions in summary).
+- Tasks implemented:
+  - **US-027** — Extracted `extractBreakerTimeline()` into `src/test/breaker-timeline.ts` (pure function, framework-free, ESM-first). Wired it into `src/test/reliability-test.ts` so the harness summary now exposes a `breakerTimeline` array of `{ timestamp, dependency, breakerEvent, previousState, breakerState }` entries. Added a guard that exits non-zero if recovery (`close` event) is not observed.
+  - **US-026** — New `docs/runbook.md` covering: triage by symptom (503/502/504/429), reproduction commands (force failure, recover, idempotency replay), tunable knob reference table, and common pitfalls (NestJS DI + `tsx`, breaker tuning). Section C of `docs/assessment.md` cross-links to the runbook and to the new `breakerTimeline` field.
+  - **Sprint status** — `docs/sprint-status.md` populated with the real S1→S5 cumulative progress, blockers (none), and recommended next actions for S6.
+- Sprint completion status (Sprint 5): **Done — 5/5 stories closed.**
+- TDD evidence (failing → passing):
+  - Wrote `src/test/breaker-timeline.spec.ts` first (4 tests) — Jest reported `Could not locate module ./breaker-timeline.js` (Red).
+  - Implemented `src/test/breaker-timeline.ts` and re-ran the spec — 4/4 passing (Green).
+  - Added handler specs for read/update CQRS surfaces:
+    - `src/contexts/upstream/application/queries/get-upstream-status.handler.spec.ts`
+    - `src/contexts/upstream/application/commands/update-failure-rate.handler.spec.ts`
+    - `src/contexts/channel/application/queries/get-integration-status.handler.spec.ts`
+- Files changed (high level):
+  - Added: `src/test/breaker-timeline.ts`, `src/test/breaker-timeline.spec.ts`, `docs/runbook.md`, three new handler spec files (Channel + Upstream queries + UpdateFailureRate).
+  - Modified: `src/test/reliability-test.ts` (consumes timeline + recovery guard), `docs/assessment.md` (Section C runbook cross-link + breakerTimeline mention), `docs/sprint-status.md` (real status snapshot).
+  - Regenerated: `docs/api/openapi.json`, `docs/postman/assessment.postman_collection.json`.
+- Commands executed:
+  - `node -v` → `v24.11.1`
+  - `pnpm test -- src/test/breaker-timeline.spec.ts` (Red, then Green)
+  - `pnpm build`
+  - `pnpm test` → 9 suites / **17 tests** all passing
+  - `pnpm docs:api` → OpenAPI + Postman regenerated successfully
+  - `pnpm test:reliability` → green; harness exits 0; `breakerTimeline` populated; `finalStatus.upstream.breakerState === "closed"`
+- Validation results:
+  - **Build**: OK (`tsc -p tsconfig.build.json`).
+  - **Unit + handler tests**: 17 / 17 passing under Jest ESM (`ts-jest/presets/default-esm` + `--experimental-vm-modules`).
+  - **OpenAPI / Postman**: regenerated; routes unchanged (`/channel/*`, `/upstream/*`).
+  - **Reliability**:
+    - `sawOpen: true`, `recoveryHttp: 200`.
+    - `breakerTimeline` example from this run:
+      - `2026-05-08T22:02:43.340Z` — `closed → open` (`open`)
+      - `2026-05-08T22:02:44.541Z` — `open → half_open` (`halfOpen`)
+      - `2026-05-08T22:02:45.052Z` — `half_open → closed` (`close`)
+- OpenAPI artifact (`docs/api/openapi.json`) status: **Regenerated** (no schema diff vs previous run — confirms DDD/CQRS layout did not break HTTP surface).
+- Postman artifact (`docs/postman/assessment.postman_collection.json`) status: **Regenerated** via `openapi-to-postmanv2` (`-p` pretty JSON).
+- Opossum configuration used (reliability harness):
+  - `timeout: false` (HTTP deadline enforced via `AbortController` + `INTEGRATION_TIMEOUT_MS`).
+  - `OPOSSUM_VOLUME_THRESHOLD=1`, `OPOSSUM_ERROR_THRESHOLD_PERCENTAGE=50`, `OPOSSUM_RESET_TIMEOUT_MS=1200`, `OPOSSUM_ROLLING_COUNT_TIMEOUT_MS=5000`.
+  - `INTEGRATION_MAX_ATTEMPTS=2`.
+- Circuit breaker behavior evidence (`open`, `halfOpen`, `close`):
+  - Captured both as raw `circuit_breaker` log lines and as a structured `breakerTimeline` array (US-027).
+  - Recovery guard: harness now fails (`process.exitCode = 1`) if the timeline lacks a `close` event, eliminating false-positive runs that opened but never recovered.
+- Design decisions:
+  - **Pure parser** for the timeline (`extractBreakerTimeline`) keeps the harness deterministic and unit-testable without spawning processes.
+  - **`previousState` derived locally** rather than read from the breaker — simpler and consistent with how `opossum` events fire (we observe the `breakerEvent` first, then the resulting state).
+  - **Runbook scope kept tactical**: triage commands + signals + decision trees, not architecture re-statement, to keep it useful during interviews/incidents.
+- Known limitations:
+  - In-memory idempotency adapter for multi-instance demos (intentional, demo scope).
+  - `breakerTimeline` collapses simultaneous `success` / `failure` events into the rolling state but only surfaces *state-change* events (open / halfOpen / close); raw event log remains in `circuitBreakerLogSample` for full auditability.
+  - Sprint 6 (US-008 SLO catalog, US-023/024 TDRs, US-028/029/030 review pass) not part of this batch — those stories belong to architecture-agent / review-agent per the plan.
+- Next actions:
+  - Trigger `/architecture` for US-008 and the two TDRs.
+  - Trigger `/review` for the final cross-link audit and to tick the submission checklist in `docs/assessment.md`.

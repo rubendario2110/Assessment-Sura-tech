@@ -13,7 +13,8 @@ export class GetUpstreamStatusHandler implements IQueryHandler<GetUpstreamStatus
     @Inject(FAILURE_RATE_REPOSITORY) private readonly failureRates: FailureRateRepository,
   ) {}
 
-  async execute(): Promise<UpstreamStatusView> {
+  async execute(_query: GetUpstreamStatusQuery): Promise<UpstreamStatusView> {
+    void _query;
     return {
       status: "ok",
       service: "upstream",
