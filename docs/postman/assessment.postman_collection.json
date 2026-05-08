@@ -1,0 +1,512 @@
+{
+    "item": [
+        {
+            "name": "channel",
+            "description": "",
+            "item": [
+                {
+                    "name": "health",
+                    "description": "",
+                    "item": [
+                        {
+                            "id": "d54bbedc-ab03-42be-943b-36de4364fdcc",
+                            "name": "Liveness probe",
+                            "request": {
+                                "name": "Liveness probe",
+                                "description": {},
+                                "url": {
+                                    "path": [
+                                        "channel",
+                                        "health"
+                                    ],
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "query": [],
+                                    "variable": []
+                                },
+                                "method": "GET",
+                                "body": {},
+                                "auth": null
+                            },
+                            "response": [
+                                {
+                                    "id": "28239026-93ef-45fd-9855-657d91bfe372",
+                                    "name": "200",
+                                    "originalRequest": {
+                                        "url": {
+                                            "path": [
+                                                "channel",
+                                                "health"
+                                            ],
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "query": [],
+                                            "variable": []
+                                        },
+                                        "method": "GET",
+                                        "body": {}
+                                    },
+                                    "status": "OK",
+                                    "code": 200,
+                                    "header": [],
+                                    "cookie": [],
+                                    "_postman_previewlanguage": "text"
+                                }
+                            ],
+                            "event": [],
+                            "protocolProfileBehavior": {
+                                "disableBodyPruning": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "integration",
+                    "description": "",
+                    "item": [
+                        {
+                            "name": "status",
+                            "description": "",
+                            "item": [
+                                {
+                                    "id": "80fcbf82-6f72-4fa7-97d4-791548e27afe",
+                                    "name": "Expose upstream circuit breaker state (opossum)",
+                                    "request": {
+                                        "name": "Expose upstream circuit breaker state (opossum)",
+                                        "description": {},
+                                        "url": {
+                                            "path": [
+                                                "channel",
+                                                "integration",
+                                                "status"
+                                            ],
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "query": [],
+                                            "variable": []
+                                        },
+                                        "method": "GET",
+                                        "body": {},
+                                        "auth": null
+                                    },
+                                    "response": [
+                                        {
+                                            "id": "92a9017a-f7bb-448d-aa54-49636758db05",
+                                            "name": "200",
+                                            "originalRequest": {
+                                                "url": {
+                                                    "path": [
+                                                        "channel",
+                                                        "integration",
+                                                        "status"
+                                                    ],
+                                                    "host": [
+                                                        "{{baseUrl}}"
+                                                    ],
+                                                    "query": [],
+                                                    "variable": []
+                                                },
+                                                "method": "GET",
+                                                "body": {}
+                                            },
+                                            "status": "OK",
+                                            "code": 200,
+                                            "header": [],
+                                            "cookie": [],
+                                            "_postman_previewlanguage": "text"
+                                        }
+                                    ],
+                                    "event": [],
+                                    "protocolProfileBehavior": {
+                                        "disableBodyPruning": true
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "demo",
+                    "description": "",
+                    "item": [
+                        {
+                            "name": "call",
+                            "description": "",
+                            "item": [
+                                {
+                                    "id": "4f4c31ce-0196-496b-a787-1783621e037d",
+                                    "name": "Invoke flaky upstream through integration framework (CQRS)",
+                                    "request": {
+                                        "name": "Invoke flaky upstream through integration framework (CQRS)",
+                                        "description": {},
+                                        "url": {
+                                            "path": [
+                                                "channel",
+                                                "demo",
+                                                "call"
+                                            ],
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "query": [],
+                                            "variable": []
+                                        },
+                                        "header": [
+                                            {
+                                                "disabled": false,
+                                                "description": {
+                                                    "content": "",
+                                                    "type": "text/plain"
+                                                },
+                                                "key": "idempotency-key",
+                                                "value": "<string>"
+                                            },
+                                            {
+                                                "disabled": false,
+                                                "description": {
+                                                    "content": "",
+                                                    "type": "text/plain"
+                                                },
+                                                "key": "traceparent",
+                                                "value": "<string>"
+                                            }
+                                        ],
+                                        "method": "POST",
+                                        "body": {},
+                                        "auth": null
+                                    },
+                                    "response": [
+                                        {
+                                            "id": "7d5c50af-c82b-4c94-9d4c-57ef421baf83",
+                                            "name": "200",
+                                            "originalRequest": {
+                                                "url": {
+                                                    "path": [
+                                                        "channel",
+                                                        "demo",
+                                                        "call"
+                                                    ],
+                                                    "host": [
+                                                        "{{baseUrl}}"
+                                                    ],
+                                                    "query": [],
+                                                    "variable": []
+                                                },
+                                                "header": [
+                                                    {
+                                                        "disabled": false,
+                                                        "description": {
+                                                            "content": "",
+                                                            "type": "text/plain"
+                                                        },
+                                                        "key": "idempotency-key",
+                                                        "value": "<string>"
+                                                    },
+                                                    {
+                                                        "disabled": false,
+                                                        "description": {
+                                                            "content": "",
+                                                            "type": "text/plain"
+                                                        },
+                                                        "key": "traceparent",
+                                                        "value": "<string>"
+                                                    }
+                                                ],
+                                                "method": "POST",
+                                                "body": {}
+                                            },
+                                            "status": "OK",
+                                            "code": 200,
+                                            "header": [],
+                                            "cookie": [],
+                                            "_postman_previewlanguage": "text"
+                                        }
+                                    ],
+                                    "event": [],
+                                    "protocolProfileBehavior": {
+                                        "disableBodyPruning": true
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "upstream",
+            "description": "",
+            "item": [
+                {
+                    "name": "health",
+                    "description": "",
+                    "item": [
+                        {
+                            "id": "7d8c526c-994c-4223-8f99-15129873bf64",
+                            "name": "Liveness probe",
+                            "request": {
+                                "name": "Liveness probe",
+                                "description": {},
+                                "url": {
+                                    "path": [
+                                        "upstream",
+                                        "health"
+                                    ],
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "query": [],
+                                    "variable": []
+                                },
+                                "method": "GET",
+                                "body": {},
+                                "auth": null
+                            },
+                            "response": [
+                                {
+                                    "id": "bac4fc89-7fa8-4f70-8f40-9f6028be088f",
+                                    "name": "200",
+                                    "originalRequest": {
+                                        "url": {
+                                            "path": [
+                                                "upstream",
+                                                "health"
+                                            ],
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "query": [],
+                                            "variable": []
+                                        },
+                                        "method": "GET",
+                                        "body": {}
+                                    },
+                                    "status": "OK",
+                                    "code": 200,
+                                    "header": [],
+                                    "cookie": [],
+                                    "_postman_previewlanguage": "text"
+                                }
+                            ],
+                            "event": [],
+                            "protocolProfileBehavior": {
+                                "disableBodyPruning": true
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "simulate",
+                    "description": "",
+                    "item": [
+                        {
+                            "name": "config",
+                            "description": "",
+                            "item": [
+                                {
+                                    "id": "98093dd9-9b33-461b-9ec5-00e512e87424",
+                                    "name": "Tune failure rate at runtime (CQRS command)",
+                                    "request": {
+                                        "name": "Tune failure rate at runtime (CQRS command)",
+                                        "description": {},
+                                        "url": {
+                                            "path": [
+                                                "upstream",
+                                                "simulate",
+                                                "config"
+                                            ],
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "query": [
+                                                {
+                                                    "disabled": false,
+                                                    "description": {
+                                                        "content": "(Required) ",
+                                                        "type": "text/plain"
+                                                    },
+                                                    "key": "failureRate",
+                                                    "value": "<string>"
+                                                }
+                                            ],
+                                            "variable": []
+                                        },
+                                        "method": "GET",
+                                        "body": {},
+                                        "auth": null
+                                    },
+                                    "response": [
+                                        {
+                                            "id": "9570d827-c236-48ef-9e3c-aeb9b6823af5",
+                                            "name": "200",
+                                            "originalRequest": {
+                                                "url": {
+                                                    "path": [
+                                                        "upstream",
+                                                        "simulate",
+                                                        "config"
+                                                    ],
+                                                    "host": [
+                                                        "{{baseUrl}}"
+                                                    ],
+                                                    "query": [
+                                                        {
+                                                            "disabled": false,
+                                                            "description": {
+                                                                "content": "(Required) ",
+                                                                "type": "text/plain"
+                                                            },
+                                                            "key": "failureRate",
+                                                            "value": "<string>"
+                                                        }
+                                                    ],
+                                                    "variable": []
+                                                },
+                                                "method": "GET",
+                                                "body": {}
+                                            },
+                                            "status": "OK",
+                                            "code": 200,
+                                            "header": [],
+                                            "cookie": [],
+                                            "_postman_previewlanguage": "text"
+                                        }
+                                    ],
+                                    "event": [],
+                                    "protocolProfileBehavior": {
+                                        "disableBodyPruning": true
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name": "echo",
+                    "description": "",
+                    "item": [
+                        {
+                            "id": "3d1d8b5a-3702-4ea2-a245-830fa0b7d76b",
+                            "name": "Echo payload via CQRS command + flaky upstream simulation",
+                            "request": {
+                                "name": "Echo payload via CQRS command + flaky upstream simulation",
+                                "description": {},
+                                "url": {
+                                    "path": [
+                                        "upstream",
+                                        "echo"
+                                    ],
+                                    "host": [
+                                        "{{baseUrl}}"
+                                    ],
+                                    "query": [],
+                                    "variable": []
+                                },
+                                "header": [
+                                    {
+                                        "disabled": false,
+                                        "description": {
+                                            "content": "",
+                                            "type": "text/plain"
+                                        },
+                                        "key": "idempotency-key",
+                                        "value": "<string>"
+                                    },
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ],
+                                "method": "POST",
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"message\": \"<string>\"\n}",
+                                    "options": {
+                                        "raw": {
+                                            "headerFamily": "json",
+                                            "language": "json"
+                                        }
+                                    }
+                                },
+                                "auth": null
+                            },
+                            "response": [
+                                {
+                                    "id": "d3fca93d-91b2-466c-a843-792501ca4c88",
+                                    "name": "200",
+                                    "originalRequest": {
+                                        "url": {
+                                            "path": [
+                                                "upstream",
+                                                "echo"
+                                            ],
+                                            "host": [
+                                                "{{baseUrl}}"
+                                            ],
+                                            "query": [],
+                                            "variable": []
+                                        },
+                                        "header": [
+                                            {
+                                                "disabled": false,
+                                                "description": {
+                                                    "content": "",
+                                                    "type": "text/plain"
+                                                },
+                                                "key": "idempotency-key",
+                                                "value": "<string>"
+                                            },
+                                            {
+                                                "key": "Content-Type",
+                                                "value": "application/json"
+                                            }
+                                        ],
+                                        "method": "POST",
+                                        "body": {
+                                            "mode": "raw",
+                                            "raw": "{\n  \"message\": \"<string>\"\n}",
+                                            "options": {
+                                                "raw": {
+                                                    "headerFamily": "json",
+                                                    "language": "json"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "status": "OK",
+                                    "code": 200,
+                                    "header": [],
+                                    "cookie": [],
+                                    "_postman_previewlanguage": "text"
+                                }
+                            ],
+                            "event": [],
+                            "protocolProfileBehavior": {
+                                "disableBodyPruning": true
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "event": [],
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "http://127.0.0.1:3000"
+        }
+    ],
+    "info": {
+        "_postman_id": "c2bd9fa5-069f-458b-a608-b42baed92303",
+        "name": "Assessment — Channel & Upstream",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+        "description": {
+            "content": "Merged OpenAPI 3.0 document for the demo NestJS + Fastify services.",
+            "type": "text/plain"
+        }
+    }
+}

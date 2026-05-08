@@ -4,11 +4,130 @@ Use this file as an append-only execution log.
 
 ## Entry Template
 - Timestamp (UTC):
+- Node.js version used (`node -v`):
+- Active sprint and planned scope:
+- Story IDs covered (`US-xxx`):
+- Task IDs covered (`T-xxx`):
 - Tasks implemented:
+- Sprint completion status (done/blocked):
+- TDD evidence (failing tests -> passing tests):
 - Files changed:
 - Commands executed:
 - Validation results:
+- OpenAPI artifact (`docs/api/openapi.json`) status:
+- Postman artifact (`docs/postman/assessment.postman_collection.json`) status:
 - Opossum configuration used:
 - Circuit breaker behavior evidence (`open`, `halfOpen`, `close`):
 - Known limitations:
 - Next actions:
+
+---
+
+## Entry: 2026-05-08T21:38:13Z
+- Timestamp (UTC): 2026-05-08T21:38:13Z
+- Node.js version used (`node -v`): v24.11.1 (project `engines.node` set to `>=22` for compatibility with Current LTS and newer Current releases)
+- Tasks implemented:
+  - **US-009** centralised configuration (`src/framework/config.ts`) with env validation.
+  - **US-010** typed errors (`src/framework/errors.ts`).
+  - **US-018** reusable `IntegrationHttpClient` (`src/framework/http-client.ts`) composed as bulkhead → `opossum` → retry+jitter → `fetch`+timeout; `@Injectable()` for Nest DI when running compiled JS.
+  - Supporting modules: `logger.ts`, `tracing.ts`, `retry.ts`, `bulkhead.ts`, `circuit-breaker.ts` (`opossum` wrapper + event wiring), `idempotency.ts`, `index.ts`.
+  - **Demo services**: `src/channel/*`, `src/upstream/*` (NestJS + Fastify + `@nestjs/swagger`).
+  - **OpenAPI + Postman**: `src/scripts/generate-openapi.ts`, generated `docs/api/openapi.json`, `pnpm postman:generate` → `docs/postman/assessment.postman_collection.json`.
+  - **Reliability harness**: `src/test/reliability-test.ts` (spawns `node dist/*/main.js`, drives failure → open → recovery).
+  - **Docs**: `docs/assessment.md` Sections B & C, `README.md` runtime note on `tsx` vs metadata.
+- TDD evidence (failing tests → passing tests):
+  - Added Vitest suites `src/framework/config.spec.ts`, `errors.spec.ts`, `http-client.spec.ts` (mocked `fetch`) — all green (`pnpm test`: 3 files, 5 tests).
+- Files changed (high level):
+  - New `src/framework/**`, `src/channel/**`, `src/upstream/**`, `src/scripts/generate-openapi.ts`, `src/test/reliability-test.ts`, `vitest.config.ts`, `tsconfig.build.json`, `package.json` scripts/deps, `docs/api/openapi.json`, `docs/postman/assessment.postman_collection.json`, `docs/assessment.md`, `README.md`.
+- Commands executed:
+  - `node -v`
+  - `pnpm build` (`tsc -p tsconfig.build.json`)
+  - `pnpm test` (Vitest)
+  - `pnpm docs:api` → `openapi:generate` + `postman:generate`
+  - `pnpm test:reliability` (includes build + orchestrated services)
+- Validation results:
+  - **Build**: OK (`pnpm build`).
+  - **Unit tests**: OK — 5 tests passed.
+  - **Reliability**: OK — observed `breakerEvent` sequence including **`open`**, **`halfOpen`**, **`close`** in stdout JSON logs; final breakerState `closed` after recovery.
+- OpenAPI artifact (`docs/api/openapi.json`) status: **Regenerated** from Nest Swagger documents (Channel + Upstream merged).
+- Postman artifact (`docs/postman/assessment.postman_collection.json`) status: **Regenerated** via `openapi-to-postmanv2` CLI (`-p` pretty JSON).
+- Opossum configuration used (reliability harness env overrides):
+  - `timeout: false` (HTTP deadline enforced via `AbortController` + `INTEGRATION_TIMEOUT_MS`).
+  - `OPOSSUM_VOLUME_THRESHOLD=1`
+  - `OPOSSUM_ERROR_THRESHOLD_PERCENTAGE=50`
+  - `OPOSSUM_RESET_TIMEOUT_MS=1200`
+  - `OPOSSUM_ROLLING_COUNT_TIMEOUT_MS=5000`
+  - `INTEGRATION_MAX_ATTEMPTS=2` (logical attempts per call while upstream is hard-failing)
+- Circuit breaker behavior evidence (`open`, `halfOpen`, `close`):
+  - Sample JSON log lines captured by harness stdout tap (channel process), e.g. `breakerEvent":"open"` with `breakerState":"open"`, later `halfOpen` / `close` during recovery after upstream `failureRate` reset to `0`.
+  - Representative excerpt from last successful run:
+    - `"breakerEvent":"failure"` … `"breakerState":"closed"`
+    - `"breakerEvent":"open"` … `"breakerState":"open"`
+    - `"breakerEvent":"halfOpen"` … `"breakerState":"half_open"`
+    - `"breakerEvent":"close"` … `"breakerState":"closed"`
+- Known limitations:
+  - **tsx bootstrap**: `pnpm exec tsx src/channel/main.ts` breaks Nest DI (missing `emitDecoratorMetadata`); production-style demos **must** use compiled output (`pnpm build && node dist/...`). Scripts `start:*` now enforce `pnpm build` first.
+  - Idempotency store in upstream is **in-memory** only (demo scope).
+  - OpenAPI generator still runs under `tsx` but does not exercise HTTP controllers — acceptable because metadata for Swagger is extracted without invoking demo endpoints.
+- Next actions:
+  - Section D TDR narrative (`/review` / Sprint 6).
+  - Optional: dedicated OTel exporter + Azure Monitor wiring; Redis-backed idempotency for multi-instance demos.
+  - Consider pinning `.nvmrc` to the Node release used in CI if team standardises on one line (currently relaxed `engines` for portability).
+
+---
+
+## Entry: 2026-05-08T21:55:00Z — Test runner migration + DDD/CQRS refactor
+- Timestamp (UTC): 2026-05-08T21:55:00Z
+- Trigger: User feedback — "porque usaste vitest y no jest? y veo que no quedo la implementacion por package de cqrs y ddd". User confirmed `migrate-jest` + `full DDD+CQRS refactor` for Channel and Upstream.
+- Story IDs covered: US-009 / US-010 / US-018 (re-validated under new layout) + foundational scaffolding for US-bounded-context stories planned in Sprint 2/3.
+- Tasks implemented:
+  - **Test runner migration (Vitest → Jest)**:
+    - Added `jest@30`, `ts-jest@29`, `@types/jest`; removed `vitest`.
+    - Created `jest.config.ts` (preset `ts-jest/presets/default-esm`, `extensionsToTreatAsEsm: ['.ts']`, `moduleNameMapper` to strip TypeScript `.js` ESM specifiers).
+    - Switched script `test` to `node --experimental-vm-modules node_modules/jest/bin/jest.js`.
+    - Updated `tsconfig.json` to add `isolatedModules: true` and `types: [node, jest]` (clears ts-jest deprecation warning).
+    - Converted spec files to use `@jest/globals` (Jest 30 + ESM no longer injects globals). Specs migrated: `config.spec.ts`, `errors.spec.ts`, `http-client.spec.ts`.
+  - **DDD + CQRS refactor by bounded context**:
+    - New layout under `src/contexts/<bc>/{domain,application,infrastructure,interfaces}` for both **Channel** and **Upstream** BCs.
+    - Installed `@nestjs/cqrs`; both controllers now publish `Commands`/`Queries` to the bus and wait for handlers (`InvokeUpstreamHandler`, `EchoHandler`, `UpdateFailureRateHandler`, etc.).
+    - **Channel BC**: value objects `IdempotencyKey`, `ChannelTraceContext`; domain events `UpstreamCallSucceededEvent`, `UpstreamCallRejectedEvent`; DI tokens for upstream base URL; provider for `IntegrationHttpClient`.
+    - **Upstream BC**: value objects `FailureRate`, `UpstreamIdempotencyKey`; domain ports `IdempotencyStore`, `FailureRateRepository`; in-memory adapters; events `EchoServedEvent`, `EchoRejectedEvent`.
+    - Old `src/channel/`, `src/upstream/` removed; entrypoints now `src/contexts/<bc>/main.ts`.
+    - Generator + reliability harness updated to import the new modules (`dist/contexts/...`).
+    - OpenAPI generator switched to compiled JS (`pnpm build && node dist/scripts/generate-openapi.js`) — `tsx` strips decorator metadata and breaks `@nestjs/cqrs` handler injection.
+- TDD evidence:
+  - Added `src/contexts/upstream/application/commands/echo.handler.spec.ts` and `src/contexts/channel/application/commands/invoke-upstream.handler.spec.ts` (both via `@nestjs/testing` + `CqrsModule` real wiring).
+  - Pre-existing framework specs adapted to Jest API; first run failed with `ReferenceError: jest is not defined` (expected for ESM); fixed by importing from `@jest/globals` and using typed `jest.Mock<() => Promise<Response>>` signature.
+- Files changed (high level):
+  - Added: `jest.config.ts`, `src/contexts/**` (full BC trees for Channel & Upstream), CQRS handler specs.
+  - Modified: `package.json` (deps, `test` script, `start:*`, `openapi:generate` now compile-then-run, removed `tsx` execution for scripts), `tsconfig.json` (`isolatedModules`, `types`), `tsconfig.build.json` (no longer excludes `src/scripts`), `src/scripts/generate-openapi.ts` (new module paths), `src/test/reliability-test.ts` (new entrypoints), `docs/assessment.md`, `README.md`.
+  - Deleted: `vitest.config.ts`, `src/channel/**`, `src/upstream/**`.
+- Commands executed:
+  - `pnpm remove vitest`
+  - `pnpm add -D jest ts-jest @types/jest`
+  - `pnpm add @nestjs/cqrs`
+  - `pnpm build`
+  - `pnpm test` → 5 suites / 9 tests passed (framework specs + CQRS handler specs).
+  - `pnpm docs:api` → OpenAPI + Postman regenerated against new BC routes.
+  - `pnpm test:reliability` → green; observed full breaker lifecycle.
+- Validation results:
+  - **Build**: OK (`tsc -p tsconfig.build.json`).
+  - **Unit + handler tests**: 9 / 9 passing under Jest ESM.
+  - **OpenAPI**: regenerated; controller routes unchanged (`/channel/*`, `/upstream/*`).
+  - **Reliability harness**:
+    - `sawOpen: true`, transitions captured: `breakerEvent: failure (closed) → open (open) → halfOpen (half_open) → close (closed) → success (closed)`.
+    - Recovery `POST /channel/demo/call` → HTTP 200, `breakerState: closed`, upstream payload echoed.
+- Decisions and rationale:
+  - **Jest** chosen because it is the official NestJS preset (matches reviewer expectation). Adopted ESM preset to keep the existing `"type": "module"` + NodeNext stack; cost was minimal (only spec imports needed adaptation).
+  - **CQRS via `@nestjs/cqrs`** instead of homegrown wiring to keep code aligned with NestJS idioms and to expose `EventBus` for domain events without extra plumbing.
+  - **DI ports for Upstream** (`IdempotencyStore`, `FailureRateRepository`) chosen over inlined classes so adapters can be swapped (e.g. Redis) without touching application/handlers.
+  - Domain events are published from handlers (succeeded/rejected/served/dedup) so a future read-model or audit consumer can subscribe without changing the command flow.
+  - OpenAPI generator must be compiled (not `tsx`) because CQRS handlers rely on `emitDecoratorMetadata` for `@CommandHandler` registration; `tsx` swallows constructor metadata, producing `UndefinedDependencyException`.
+- Known limitations:
+  - In-memory adapters for `IdempotencyStore` and `FailureRateRepository` (intentional, demo scope).
+  - Domain events are not persisted; only published to the in-process `EventBus` (no consumers wired yet — kept for Sprint 2 stories).
+  - No e2e (`@nestjs/testing` HTTP) suite yet — covered indirectly by reliability harness.
+- Next actions:
+  - Wire a sample `@EventsHandler` (e.g. structured audit log) for `UpstreamCallRejectedEvent` once observability story is picked up.
+  - Replace in-memory idempotency adapter with Redis-backed implementation for multi-instance demos.
+  - Add CommandBus-based controller integration tests with `@nestjs/testing` HTTP harness.

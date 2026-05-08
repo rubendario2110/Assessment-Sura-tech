@@ -141,11 +141,97 @@ Workstream exit criteria:
 
 ## Section B — Reusable Integration Framework
 
-To be completed by `/implementation`. The framework lives under `src/framework/` and is referenced by `src/channel/` and `src/upstream/`.
+### Implementation outline
+
+The reusable integration layer ships under `src/framework/` as a Nest-friendly `@Injectable()` **`IntegrationHttpClient`** (`http-client.ts`). Outbound calls execute with fixed composition: **bulkhead (async semaphore) → `opossum` circuit breaker → bounded retries with exponential backoff + jitter → `fetch` + `AbortSignal` timeout**.
+
+### Design decisions
+
+| Decision | Rationale |
+| --- | --- |
+| `opossum` mandatory CB | Assessment/repo standard; exposes `open`, `halfOpen`, `close`, `reject`, `failure`, `success`, `timeout` events for structured logs. |
+| CB timeout disabled (`timeout: false`) | Avoid duplicate timers vs HTTP-level deadline (`INTEGRATION_TIMEOUT_MS` via `AbortController`). |
+| Retries inside `breaker.fire` | One CB observation per logical outbound invocation after retries exhaust — avoids counting each retry as independent breaker stats while still absorbing bursts. |
+| Centralised JSON logging | `logger.ts` emits single-line JSON suitable for Log Analytics / ELK; circuit events logged at `info` with field `message":"circuit_breaker"`. |
+| W3C `traceparent` | Parsed/generated in `tracing.ts`; propagated as HTTP header on upstream calls. |
+| Idempotency keys | `generateIdempotencyKey()` + `Idempotency-Key` header for mutation-style demos (upstream dedupes in-memory). |
+
+### Configuration (`US-009`)
+
+| Env var | Purpose |
+| --- | --- |
+| `SERVICE_NAME` | Service label inside logs |
+| `INTEGRATION_TIMEOUT_MS` | Per-attempt HTTP deadline |
+| `INTEGRATION_MAX_ATTEMPTS` | Total attempts including first try |
+| `INTEGRATION_BASE_DELAY_MS`, `INTEGRATION_MAX_DELAY_MS`, `INTEGRATION_JITTER_RATIO` | Backoff + jitter |
+| `INTEGRATION_BULKHEAD_MAX_CONCURRENT` | Concurrent upstream calls per dependency id |
+| `OPOSSUM_*` | Volume/threshold/rolling window/reset timeout |
+
+Typed errors (`errors.ts`): `TimeoutError`, `CircuitOpenError`, `UpstreamError`, `BulkheadFullError`, … map cleanly to HTTP semantics in the Channel controller.
+
+### Runtime caveat — NestJS DI + `tsx`
+
+Bootstrapping with `tsx` **drops `emitDecoratorMetadata`**, so Nest (and `@nestjs/cqrs` handlers) cannot resolve constructor parameters such as `IntegrationHttpClient`. Always run from compiled output (`pnpm build && node dist/contexts/<bc>/main.js`). All `pnpm start:*`, `pnpm openapi:generate`, and `pnpm test:reliability` scripts compile first.
+
+### Automated tests (TDD evidence)
+
+Specs run on **Jest** (`ts-jest/presets/default-esm` + `--experimental-vm-modules`), aligned with the official NestJS preset:
+
+- `src/framework/*.spec.ts` — config parsing, typed errors, mocked `fetch` contract for `IntegrationHttpClient`.
+- `src/contexts/upstream/application/commands/echo.handler.spec.ts` — CQRS handler validated end-to-end with `@nestjs/testing` (idempotent replay, flaky failure mode).
+- `src/contexts/channel/application/commands/invoke-upstream.handler.spec.ts` — CQRS handler validates success path and translates `CircuitOpenError` into `ChannelHttpException(503)`.
+
+---
 
 ## Section C — Demo Service & Reliability Test
 
-To be completed by `/implementation`. Includes run instructions for `channel`, `upstream`, and the reliability test, plus a behavior narrative under failure scenarios.
+### Components (DDD + CQRS layout)
+
+Both bounded contexts follow the same shape: `domain/` (value objects, events, ports), `application/` (CQRS commands, queries, handlers, DTOs), `infrastructure/` (in-memory adapters, DI providers and tokens), `interfaces/http/` (NestJS controllers that simply translate HTTP → command/query bus).
+
+| Path | Role |
+| --- | --- |
+| `src/contexts/upstream/` | Flaky upstream BC — `EchoCommand`, `UpdateFailureRateCommand`, `GetUpstreamStatusQuery`; in-memory `IdempotencyStore` + `FailureRateRepository` |
+| `src/contexts/channel/` | Outbound BC — `InvokeUpstreamCommand`, `GetIntegrationStatusQuery`, value objects `IdempotencyKey` / `ChannelTraceContext`, domain events `UpstreamCallSucceededEvent` / `UpstreamCallRejectedEvent` |
+| `src/framework/` | Reusable `IntegrationHttpClient` (`opossum` + bulkhead + retry + timeout + traceparent) injected by the Channel application layer |
+| `src/test/reliability-test.ts` | Spawns compiled `dist/contexts/*/main.js`, drives failure → open circuit → recovery |
+
+Upstream exposes `GET /upstream/simulate/config?failureRate=` (handled via `UpdateFailureRateCommand`) for runtime tuning (default seeded by `UPSTREAM_FAILURE_RATE`).
+
+### How to run locally
+
+```bash
+pnpm install
+pnpm build
+UPSTREAM_PORT=3001 SERVICE_NAME=upstream node dist/contexts/upstream/main.js &
+CHANNEL_PORT=3000 UPSTREAM_BASE_URL=http://127.0.0.1:3001 SERVICE_NAME=channel node dist/contexts/channel/main.js &
+```
+
+(Prefer placing each command in its own terminal session instead of background `&` for clarity.)
+
+Swagger UI (generated decorators):
+
+- Channel: `http://127.0.0.1:3000/channel/api-docs`
+- Upstream: `http://127.0.0.1:3001/upstream/api-docs`
+
+### Reliability harness
+
+```bash
+pnpm test:reliability   # runs `pnpm build` then orchestrates both services
+```
+
+Expected stdout highlights JSON lines where **`breakerEvent` transitions through `open → halfOpen → close`** once upstream failures cease after `resetTimeout`.
+
+### Failure behaviour narrative
+
+1. With `failureRate=1`, upstream returns HTTP 503 → retries exhaust → **`UpstreamError`** bubbles → **`opossum`** records failures → circuit **`open`** (`CircuitOpenError` → HTTP 503 payload `{ error: "circuit_open" }`).
+2. After cool-down (`OPOSSUM_RESET_TIMEOUT_MS`), **`halfOpen`** probe runs; successful echo **`close`**s the breaker.
+3. Structured logs (`circuit_breaker`) capture transitions for interviews (`open`, `halfOpen`, `close`, `failure`, `success`).
+
+### API artifacts
+
+- Machine-readable OpenAPI: `docs/api/openapi.json` (`pnpm openapi:generate`)
+- Postman Collection v2.1: `docs/postman/assessment.postman_collection.json` (`pnpm postman:generate`)
 
 ## Section D — Technical Decision Record
 
@@ -159,7 +245,7 @@ To be completed in Sprint 6. Two one-page decisions:
 - [x] C4 diagrams (System Context, Container, Component) committed under `docs/`.
 - [x] Executive overview diagram updated.
 - [x] Diagram explanations published in `docs/c4-diagram-explanations.md`.
-- [ ] Section B — integration framework code and design notes.
-- [ ] Section C — demo run instructions and failure behavior.
+- [x] Section B — integration framework code and design notes.
+- [x] Section C — demo run instructions and failure behavior.
 - [ ] Section D — TDR (one page).
 - [ ] All evidence logs updated in `docs/evidence/`.

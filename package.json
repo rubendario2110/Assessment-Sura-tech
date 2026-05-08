@@ -3,21 +3,44 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "packageManager": "pnpm@10.23.0",
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start:channel": "pnpm build && node dist/contexts/channel/main.js",
+    "start:upstream": "pnpm build && node dist/contexts/upstream/main.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+    "test:reliability": "pnpm build && tsx src/test/reliability-test.ts",
+    "openapi:generate": "pnpm build && node dist/scripts/generate-openapi.js",
+    "postman:generate": "node node_modules/openapi-to-postmanv2/bin/openapi2postmanv2.js -s docs/api/openapi.json -o docs/postman/assessment.postman_collection.json -p",
+    "docs:api": "pnpm openapi:generate && pnpm postman:generate",
     "sdd:start": "echo \"Run /specs -> /plan -> /architecture -> /implementation in Cursor.\"",
-    "sdd:review": "echo \"Run /review-batch and /prepare-submission in Cursor.\""
+    "sdd:review": "echo \"Run /review in Cursor and verify docs/evidence/review-agent-evidence.md.\""
   },
   "dependencies": {
+    "@fastify/swagger": "^9.7.0",
+    "@fastify/swagger-ui": "^5.2.6",
     "@nestjs/common": "^11.1.9",
     "@nestjs/core": "^11.1.9",
+    "@nestjs/cqrs": "^11.0.3",
     "@nestjs/platform-fastify": "^11.1.9",
+    "@nestjs/swagger": "^11.4.2",
     "fastify": "^5.6.1",
+    "opossum": "^9.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
+    "@nestjs/testing": "^11.1.19",
+    "@types/jest": "^30.0.0",
     "@types/node": "^22.15.18",
+    "@types/opossum": "^8.1.9",
+    "jest": "^30.4.1",
+    "openapi-to-postmanv2": "^6.0.1",
+    "ts-jest": "^29.4.9",
     "tsx": "^4.20.6",
     "typescript": "^5.8.3"
   }
