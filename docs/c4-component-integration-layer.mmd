@@ -79,18 +79,23 @@ flowchart TB
     catalog --> sdk
 
     %% Composition pipeline (each call goes through these in order)
-    sdk --> idemp --> bulk --> cb --> retry --> tmo --> cache
+    sdk --> idemp
+    idemp --> bulk
+    bulk --> cb
+    cb --> retry
+    retry --> tmo
+    tmo --> cache
     cache --> http
     cache --> msg
 
-    %% Cross-cutting
-    cfg -. config .- sdk
-    cfg -. config .- cb
-    cfg -. config .- retry
-    cfg -. config .- tmo
-    cfg -. config .- bulk
-    cfg -. config .- cache
-    cfg <-. load .- appcfg
+    %% Cross-cutting configuration
+    cfg -. config .-> sdk
+    cfg -. config .-> cb
+    cfg -. config .-> retry
+    cfg -. config .-> tmo
+    cfg -. config .-> bulk
+    cfg -. config .-> cache
+    appcfg -. load .-> cfg
 
     %% Observability cross-cutting
     sdk -. emit .-> log
@@ -113,26 +118,30 @@ flowchart TB
     bulk -. throw .-> errors
 
     %% Transport to ACLs to externals
-    http --> adptCoreP --> coreP
-    http --> adptCoreC --> coreC
-    http --> adptPay --> payGw
-    http --> adptKyc --> kyc
-    http --> adptCat --> catSrc
+    http --> adptCoreP
+    http --> adptCoreC
+    http --> adptPay
+    http --> adptKyc
+    http --> adptCat
+    adptCoreP --> coreP
+    adptCoreC --> coreC
+    adptPay --> payGw
+    adptKyc --> kyc
+    adptCat --> catSrc
     msg --> sb
     msg --> eg
 
     %% Secrets
-    sdk <-. fetch .- kv
-    adptPay <-. credentials .- kv
-    adptKyc <-. credentials .- kv
+    sdk -. fetch secret .-> kv
+    adptPay -. read creds .-> kv
+    adptKyc -. read creds .-> kv
 
-    %% Notes (rendered as annotations)
-    %% NFR mapping:
-    %%   Timeout (tmo)        -> NFR-Latency-Bound, prevents hangs
-    %%   Retry (retry)        -> NFR-Transient-Tolerance, exponential + full jitter
-    %%   Circuit Breaker (cb) -> NFR-Isolation, prevents cascading failure (opossum, mandatory)
-    %%   Bulkhead (bulk)      -> NFR-Resource-Isolation, per-dependency concurrency cap
-    %%   Idempotency (idemp)  -> NFR-Mutation-Safety, dedupe via Redis store + header
-    %%   Cache (cache)        -> NFR-Read-Latency, cache-aside w/ stampede protection
-    %%   Logger (log)         -> NFR-Triage, JSON, no PII
-    %%   Tracing (trc)        -> NFR-Correlation, W3C traceparent end-to-end
+    %% NFR mapping (commentary):
+    %%   Timeout (tmo)        -> prevents hangs (NFR-Latency-Bound)
+    %%   Retry (retry)        -> absorbs transient failures (NFR-Transient-Tolerance)
+    %%   Circuit Breaker (cb) -> isolates failing dependencies (NFR-Isolation, opossum)
+    %%   Bulkhead (bulk)      -> per-dependency concurrency cap (NFR-Resource-Isolation)
+    %%   Idempotency (idemp)  -> at-most-once mutations (NFR-Mutation-Safety)
+    %%   Cache (cache)        -> low-latency hot reads (NFR-Read-Latency)
+    %%   Logger (log)         -> JSON, no PII (NFR-Triage)
+    %%   Tracing (trc)        -> end-to-end correlation (NFR-Correlation)
