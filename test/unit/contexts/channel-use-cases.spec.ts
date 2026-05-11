@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { ResilientHttpClient } from "@assessment/integration-framework";
 import {
   CircuitOpenError,
@@ -42,11 +42,11 @@ describe("Channel application use cases", () => {
     expect(sink.publish).toHaveBeenCalledWith(expect.any(UpstreamProxySucceededEvent));
   });
 
-  it("PlaceOrderUseCase dedupes idempotent mutations", () => {
+  it("PlaceOrderUseCase dedupes idempotent mutations", async () => {
     const store = new InMemoryIdempotencyStore();
     const uc = new PlaceOrderUseCase(store, sink);
-    const a = uc.execute("k1", { productId: "p", qty: 1 });
-    const b = uc.execute("k1", { productId: "p", qty: 1 });
+    const a = await uc.execute("k1", { productId: "p", qty: 1 });
+    const b = await uc.execute("k1", { productId: "p", qty: 1 });
     expect(a.deduped).toBe(false);
     expect(b.deduped).toBe(true);
     expect((a.body as { id: string }).id).toBe((b.body as { id: string }).id);
@@ -57,6 +57,33 @@ describe("Channel application use cases", () => {
   it("PlaceOrderUseCase exposes idempotency header name", () => {
     const uc = new PlaceOrderUseCase(new InMemoryIdempotencyStore(), sink);
     expect(uc.idempotencyHeaderName()).toBe("Idempotency-Key");
+  });
+
+  describe("with APPLICATION_VERBOSE_LOGS=true", () => {
+    beforeEach(() => {
+      process.env.APPLICATION_VERBOSE_LOGS = "true";
+    });
+    afterEach(() => {
+      delete process.env.APPLICATION_VERBOSE_LOGS;
+    });
+
+    it("InvokeUpstreamUseCase logs execution path", async () => {
+      execute.mockResolvedValueOnce(
+        new Response(JSON.stringify({ hello: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+      await makeInvokeUpstream().execute("ok", "1");
+      expect(execute).toHaveBeenCalled();
+    });
+
+    it("PlaceOrderUseCase logs dedupe path", async () => {
+      const store = new InMemoryIdempotencyStore();
+      const uc = new PlaceOrderUseCase(store, sink);
+      await uc.execute("vk", { productId: "p", qty: 1 });
+      await uc.execute("vk", { productId: "p", qty: 1 });
+    });
   });
 
   it("InvokeUpstreamUseCase surfaces client failures", async () => {

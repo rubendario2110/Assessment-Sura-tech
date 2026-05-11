@@ -3,8 +3,8 @@ export interface IdempotencyRecord {
   body: Record<string, unknown>;
 }
 
-/** Demo boundary: dedupe store owned by the channel context (no durable guarantee). */
+/** Dedupe store owned by the channel context (in-memory or Redis-backed when configured). */
 export interface IdempotencyStorePort {
-  get(key: string): IdempotencyRecord | undefined;
-  put(key: string, record: IdempotencyRecord): void;
+  get(key: string): Promise<IdempotencyRecord | undefined>;
+  put(key: string, record: IdempotencyRecord): Promise<void>;
 }

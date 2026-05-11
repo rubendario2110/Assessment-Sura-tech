@@ -16,6 +16,7 @@ describe("Channel Nest app", () => {
 
   beforeEach(async () => {
     jest.resetAllMocks();
+    delete process.env.REDIS_URL;
     process.env.UPSTREAM_URL = "http://127.0.0.1:3001";
     process.env.SERVICE_NAME = "channel-it";
 

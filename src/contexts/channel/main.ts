@@ -1,18 +1,20 @@
+import "./otel-register.js";
 import "reflect-metadata";
+import { Logger } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { nestLoggerLevels, registerHttpAccessLog } from "../shared/demo-bootstrap.js";
 import { AppModule } from "./app.module.js";
-import { maybeBootstrapTelemetry } from "./telemetry.js";
-
-maybeBootstrapTelemetry();
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter(),
-    { logger: ["error", "warn"] },
+    { logger: nestLoggerLevels() },
   );
+
+  registerHttpAccessLog(app);
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle("Assessment — Channel")
@@ -26,6 +28,7 @@ async function bootstrap(): Promise<void> {
 
   const port = Number(process.env.CHANNEL_PORT ?? 3000);
   await app.listen(port, "0.0.0.0");
+  new Logger("Channel").log(`Listening on http://0.0.0.0:${port} · Swagger /api/docs`);
 }
 
 void bootstrap();

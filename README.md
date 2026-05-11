@@ -22,6 +22,20 @@
 - **Node.js** ≥ 22 · **pnpm** (see root `package.json`)
 - **Docker** (optional) — **[`docker-compose.demo.yml`](./docker-compose.demo.yml)**
 
+### Environment variables
+
+Copy **[`.env.example`](./.env.example)** → **`.env`** or **`.env.local`**. Nest loads **`.env.local`** first, then **`.env`**.
+
+| Area | Variables |
+| --- | --- |
+| Ports / URLs | `CHANNEL_PORT`, `UPSTREAM_PORT`, `UPSTREAM_URL`, `SERVICE_NAME` |
+| Idempotency | `REDIS_URL` — if set and Redis is reachable, **`POST /demo/order`** dedupes via Redis; otherwise **in-memory** (per process). Optional `IDEMPOTENCY_REDIS_TTL_SECONDS` (positive integer, Redis `EX`). |
+| Resilience | `IF_*` — see **`.env.example`** and `packages/integration-framework` `loadIntegrationConfig` |
+| OpenTelemetry (channel only) | Set **`OTEL_EXPORTER_OTLP_ENDPOINT`** or **`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`** to enable export. Disable with **`OTEL_ENABLED=false`** / **`OTEL_SDK_DISABLED=true`**. |
+| Verbose app logs | **`APPLICATION_VERBOSE_LOGS`** — when not `false`, use cases log each **`execute`** and idempotency stores log **Redis/memory GET/SET**. Jest sets this off by default (`test/setup-env.ts`); run **`APPLICATION_VERBOSE_LOGS=true pnpm test`** to see them in tests. |
+
+At **channel** startup, **`OpenTelemetry`** logs on stdout whether OTLP export is **skipped** or **started** (see `src/contexts/channel/otel-bootstrap.ts`). The SDK is loaded via **`import "./otel-register.js"`** as the **first** import in `main.ts` so instrumentations run **before** Nest/Fastify; set **`OTEL_SERVICE_NAME`** (or **`SERVICE_NAME`**) so Jaeger shows a proper service name. **`IdempotencyStore`** logs **`store=in-memory`** vs **`store=Redis …`** when the module boots.
+
 ---
 
 ## Scripts you will use
@@ -88,8 +102,9 @@ Optional: **`RELIABILITY_USE_DIST=1 pnpm test:reliability`** — uses **`dist/co
 ### 3. Unit / integration tests
 
 ```bash
-pnpm test
+pnpm test              # verbose listing per file (Jest `verbose: true`)
 pnpm test:coverage
+APPLICATION_VERBOSE_LOGS=true pnpm test   # optional: use-case + Redis/memory idempotency logs inside tests
 ```
 
 ---
@@ -115,9 +130,10 @@ pnpm demo:config    # validate Compose (no daemon)
 pnpm demo:up        # Redis + OTel Collector + Jaeger
 ```
 
+- **Redis** on **`127.0.0.1:6379`** — set **`REDIS_URL=redis://127.0.0.1:6379`** in **`.env`** so the channel uses Redis for idempotency (optional).  
 - Jaeger UI: [http://localhost:16686](http://localhost:16686)  
 - Collector: **[`observability/otel-collector-config.yaml`](./observability/otel-collector-config.yaml)**  
-- Set **`OTEL_EXPORTER_OTLP_*`** (and related) on the channel process to emit traces; see OpenTelemetry docs.
+- **Traces:** set **`OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318/v1/traces`** (and **`OTEL_SERVICE_NAME`**) on the **channel** process; see **`.env.example`**.
 
 ```bash
 pnpm demo:down

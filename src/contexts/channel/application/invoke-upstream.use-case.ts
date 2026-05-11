@@ -1,11 +1,14 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { ResilientHttpClient } from "@assessment/integration-framework";
+import { isApplicationVerboseLogging } from "../../shared/application-verbose-log.js";
 import type { ChannelDomainEventsSink } from "../domain/domain-events.sink.port.js";
 import { UpstreamProxySucceededEvent } from "../domain/events/upstream-proxy-succeeded.event.js";
 import { CHANNEL_DOMAIN_EVENTS_SINK, UPSTREAM_HTTP_CLIENT } from "../infrastructure/tokens.js";
 
 @Injectable()
 export class InvokeUpstreamUseCase {
+  private readonly log = new Logger(InvokeUpstreamUseCase.name);
+
   constructor(
     @Inject(UPSTREAM_HTTP_CLIENT)
     private readonly upstream: ResilientHttpClient,
@@ -26,8 +29,14 @@ export class InvokeUpstreamUseCase {
     if (slowMs) qs.set("slowMs", slowMs);
     if (latencyMs) qs.set("latencyMs", latencyMs);
     const path = `/resource?${qs.toString()}`;
+    if (isApplicationVerboseLogging()) {
+      this.log.log(`execute GET ${path}`);
+    }
     const res = await this.upstream.execute({ method: "GET", path });
     const json = (await res.json()) as Record<string, unknown>;
+    if (isApplicationVerboseLogging()) {
+      this.log.log(`execute completed http=${res.status} keys=${Object.keys(json).join(",")}`);
+    }
     this.domainEvents.publish(new UpstreamProxySucceededEvent(path));
     return json;
   }

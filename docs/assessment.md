@@ -6,7 +6,7 @@
 
 | Category | Documents |
 | --- | --- |
-| **Entry points** | [README.md](../README.md) (install, scripts, demo verification) · [assessment-input.md](./assessment-input.md) (captured brief) · **this file** [assessment.md](./assessment.md) |
+| **Entry / config** | [README.md](../README.md) · [assessment-input.md](./assessment-input.md) · [`.env.example`](../.env.example) |
 | **Executable specs** | [A-architecture.spec.md](../specs/A-architecture.spec.md) · [B-integration-framework.spec.md](../specs/B-integration-framework.spec.md) · [C-demo-service.spec.md](../specs/C-demo-service.spec.md) · [D-tdr.spec.md](../specs/D-tdr.spec.md) |
 | **C4 & architecture diagrams** | [architecture.mmd](./architecture.mmd) · [c4-system-context.mmd](./c4-system-context.mmd) · [c4-container.mmd](./c4-container.mmd) · [c4-component-integration-layer.mmd](./c4-component-integration-layer.mmd) · [c4-diagram-explanations.md](./c4-diagram-explanations.md) |
 | **Scrum / backlog** | [plan-scrum.md](./plan-scrum.md) · [backlog.md](./backlog.md) · [sprint-status.md](./sprint-status.md) |
@@ -325,6 +325,8 @@ CHANNEL_PORT=3000 UPSTREAM_URL=http://127.0.0.1:3001 SERVICE_NAME=channel pnpm s
 
 Channel Swagger UI: `http://127.0.0.1:3000/api/docs` · OpenAPI JSON on the same app: `http://127.0.0.1:3000/api/openapi.json`
 
+**Optional telemetry (channel):** set **`OTEL_EXPORTER_OTLP_ENDPOINT`** or **`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`** to export traces (e.g. to the Compose OTel collector). Set **`OTEL_ENABLED=false`** or **`OTEL_SDK_DISABLED=true`** to force-disable. See [`.env.example`](../.env.example).
+
 ### Reliability harness
 
 ```bash
@@ -337,7 +339,7 @@ The JSON summary includes log lines with **`breakerState`** (`open`, `halfOpen`,
 
 1. Upstream in `mode=fail` or other 5xx responses → the framework retries where applicable → **`UpstreamError`** / **`CircuitOpenError`** depending on `opossum` thresholds → the channel returns **502 / 503 / 504** with a stable body (see mapper).
 2. After **`IF_BREAKER_RESET_TIMEOUT_MS`**, the breaker may transition through **half-open** and **closed** if upstream returns to `mode=ok`; channel JSON logs show the timeline.
-3. **`POST /demo/order`** with the same `Idempotency-Key` returns **200** and `deduped: true` without repeating side effects (in-memory store for demo only).
+3. **`POST /demo/order`** with the same `Idempotency-Key` returns **200** and `deduped: true` without repeating side effects. If **`REDIS_URL`** is set and Redis is reachable at startup, records are stored under **`assessment:channel:idempotency:*`** (optional **`IDEMPOTENCY_REDIS_TTL_SECONDS`**). Otherwise the channel uses an **in-memory** store (process-local). See [`.env.example`](../.env.example).
 
 ### API artifacts
 

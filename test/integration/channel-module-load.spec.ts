@@ -8,6 +8,7 @@ describe("ChannelModule factory wiring", () => {
   let app: NestFastifyApplication;
 
   beforeEach(async () => {
+    delete process.env.REDIS_URL;
     process.env.UPSTREAM_URL = "http://127.0.0.1:31999";
     process.env.SERVICE_NAME = "channel-factory-it";
     const ref = await Test.createTestingModule({
