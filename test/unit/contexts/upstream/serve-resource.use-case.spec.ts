@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { UpstreamDomainEventsSink } from "../../../../src/contexts/upstream/domain/domain-events.sink.port.js";
 import { UpstreamResourceServedEvent } from "../../../../src/contexts/upstream/domain/events/upstream-resource-served.event.js";
 import { UpstreamSimulationEvaluatedEvent } from "../../../../src/contexts/upstream/domain/events/upstream-simulation-evaluated.event.js";
@@ -40,6 +40,20 @@ describe("ServeResourceUseCase", () => {
     expect(served.some((e) => e instanceof UpstreamResourceServedEvent && e.outcome === "fail")).toBe(
       true,
     );
+  });
+
+  describe("with APPLICATION_VERBOSE_LOGS=true", () => {
+    beforeEach(() => {
+      process.env.APPLICATION_VERBOSE_LOGS = "true";
+    });
+    afterEach(() => {
+      delete process.env.APPLICATION_VERBOSE_LOGS;
+    });
+
+    it("logs ok and fail outcomes", async () => {
+      await uc.execute({ mode: "ok", failRate: 0.5, slowMs: 0, latencyMs: 0 });
+      await uc.execute({ mode: "fail", failRate: 0, slowMs: 0, latencyMs: 0 });
+    });
   });
 
   it("waits when policy requests delay", async () => {

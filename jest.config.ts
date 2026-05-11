@@ -2,6 +2,8 @@ import type { Config } from "jest";
 
 const config: Config = {
   preset: "ts-jest/presets/default-esm",
+  setupFilesAfterEnv: ["<rootDir>/test/setup-env.ts"],
+  verbose: true,
   testEnvironment: "node",
   extensionsToTreatAsEsm: [".ts"],
   testMatch: ["<rootDir>/test/**/*.spec.ts"],
@@ -28,6 +30,8 @@ const config: Config = {
     "!src/contexts/**/*.port.ts",
     "!src/contexts/**/main.ts",
     "!src/contexts/channel/telemetry.ts",
+    "!src/contexts/channel/otel-bootstrap.ts",
+    "!src/contexts/channel/otel-register.ts",
   ],
   coverageDirectory: "coverage",
   coverageProvider: "v8",

@@ -47,7 +47,9 @@ export class DemoController {
   }
 
   @Post("demo/order")
-  @ApiOperation({ summary: "Mutation with optional idempotency key (demo Map dedupe)" })
+  @ApiOperation({
+    summary: "Mutation with optional idempotency key (Redis when REDIS_URL is set, else in-memory)",
+  })
   @ApiHeader({ name: "Idempotency-Key", required: false })
   @ApiBody({
     schema: {
@@ -64,7 +66,7 @@ export class DemoController {
     if (!body?.productId || typeof body.qty !== "number") {
       throw new HttpException({ error: "validation_error", message: "Invalid payload" }, 400);
     }
-    const result = this.placeOrderUc.execute(idempotencyKey, body);
+    const result = await this.placeOrderUc.execute(idempotencyKey, body);
     void reply.status(result.deduped ? HttpStatus.OK : HttpStatus.CREATED);
     return result.body;
   }

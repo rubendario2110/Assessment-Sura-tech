@@ -1,4 +1,5 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
+import { isApplicationVerboseLogging } from "../../shared/application-verbose-log.js";
 import type { UpstreamDomainEventsSink } from "../domain/domain-events.sink.port.js";
 import { UpstreamResourceServedEvent } from "../domain/events/upstream-resource-served.event.js";
 import { UpstreamSimulationEvaluatedEvent } from "../domain/events/upstream-simulation-evaluated.event.js";
@@ -12,12 +13,19 @@ export type ServeResourceResult =
 
 @Injectable()
 export class ServeResourceUseCase {
+  private readonly log = new Logger(ServeResourceUseCase.name);
+
   constructor(
     @Inject(UPSTREAM_DOMAIN_EVENTS_SINK)
     private readonly domainEvents: UpstreamDomainEventsSink,
   ) {}
 
   async execute(input: FlakySimulationInput): Promise<ServeResourceResult> {
+    if (isApplicationVerboseLogging()) {
+      this.log.log(
+        `execute mode=${input.mode} seed=${input.seed ?? "—"} failRate=${input.failRate ?? "—"}`,
+      );
+    }
     const plan = evaluateFlakyPlan(input);
     this.domainEvents.publish(new UpstreamSimulationEvaluatedEvent(plan));
     if (plan.delayMs > 0) {
@@ -34,9 +42,15 @@ export class ServeResourceUseCase {
         },
       };
       this.domainEvents.publish(new UpstreamResourceServedEvent("fail", plan.status));
+      if (isApplicationVerboseLogging()) {
+        this.log.log(`result fail http=${plan.status} delayMs=${plan.delayMs}`);
+      }
       return fail;
     }
     this.domainEvents.publish(new UpstreamResourceServedEvent("ok", 200));
+    if (isApplicationVerboseLogging()) {
+      this.log.log(`result ok delayMs=${plan.delayMs}`);
+    }
     return { outcome: "ok", body: { ok: true, ...plan.body } };
   }
 }

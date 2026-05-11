@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import {
   createIdempotencyKey,
   idempotencyHeaderName,
@@ -8,6 +8,8 @@ import type { OrderPayload } from "../domain/order.types.js";
 import type { IdempotencyStorePort } from "../domain/idempotency-store.port.js";
 import { OrderIdempotentReplayEvent } from "../domain/events/order-idempotent-replay.event.js";
 import { OrderPlacedEvent } from "../domain/events/order-placed.event.js";
+import { isApplicationVerboseLogging } from "../../shared/application-verbose-log.js";
+import { maskIdempotencyKey } from "../../shared/mask-idempotency-key.js";
 import { CHANNEL_DOMAIN_EVENTS_SINK, IDEMPOTENCY_STORE } from "../infrastructure/tokens.js";
 
 export interface PlaceOrderResult {
@@ -18,6 +20,8 @@ export interface PlaceOrderResult {
 
 @Injectable()
 export class PlaceOrderUseCase {
+  private readonly log = new Logger(PlaceOrderUseCase.name);
+
   constructor(
     @Inject(IDEMPOTENCY_STORE)
     private readonly idempotency: IdempotencyStorePort,
@@ -25,10 +29,18 @@ export class PlaceOrderUseCase {
     private readonly domainEvents: ChannelDomainEventsSink,
   ) {}
 
-  execute(idempotencyKey: string | undefined, body: OrderPayload): PlaceOrderResult {
+  async execute(idempotencyKey: string | undefined, body: OrderPayload): Promise<PlaceOrderResult> {
     const key = idempotencyKey ?? createIdempotencyKey();
-    const prev = this.idempotency.get(key);
+    if (isApplicationVerboseLogging()) {
+      this.log.log(
+        `execute productId=${body.productId} qty=${body.qty} idempotencyKey=${maskIdempotencyKey(key)}`,
+      );
+    }
+    const prev = await this.idempotency.get(key);
     if (prev) {
+      if (isApplicationVerboseLogging()) {
+        this.log.log(`replay deduped order idempotencyKey=${maskIdempotencyKey(key)}`);
+      }
       const existingId = String((prev.body as { id?: string }).id ?? "unknown");
       this.domainEvents.publish(new OrderIdempotentReplayEvent(key, existingId));
       return { statusCode: 200, body: { ...prev.body, deduped: true }, deduped: true };
@@ -43,7 +55,10 @@ export class PlaceOrderUseCase {
       body: created as Record<string, unknown>,
       deduped: false,
     };
-    this.idempotency.put(key, { statusCode: payload.statusCode, body: payload.body });
+    await this.idempotency.put(key, { statusCode: payload.statusCode, body: payload.body });
+    if (isApplicationVerboseLogging()) {
+      this.log.log(`placed orderId=${created.id} idempotencyKey=${maskIdempotencyKey(key)}`);
+    }
     this.domainEvents.publish(
       new OrderPlacedEvent(created.id, key, body.productId, body.qty),
     );

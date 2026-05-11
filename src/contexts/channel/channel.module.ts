@@ -2,7 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { InvokeUpstreamUseCase } from "./application/invoke-upstream.use-case.js";
 import { PlaceOrderUseCase } from "./application/place-order.use-case.js";
-import { InMemoryIdempotencyStore } from "./infrastructure/in-memory-idempotency.store.js";
+import { createIdempotencyStore } from "./infrastructure/create-idempotency-store.js";
 import { NoOpChannelDomainEventsSink } from "./infrastructure/noop-channel-domain-events.sink.js";
 import {
   CHANNEL_DOMAIN_EVENTS_SINK,
@@ -28,7 +28,8 @@ import { DemoController } from "./interfaces/http/demo.controller.js";
     },
     {
       provide: IDEMPOTENCY_STORE,
-      useClass: InMemoryIdempotencyStore,
+      inject: [ConfigService],
+      useFactory: createIdempotencyStore,
     },
     {
       provide: CHANNEL_DOMAIN_EVENTS_SINK,
