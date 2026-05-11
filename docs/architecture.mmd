@@ -1,0 +1,83 @@
+%% Executive overview - Multi-Country Digital Direct Channel
+%% High-level slice across edge, channel, integration, data, and operations.
+
+flowchart LR
+    classDef channel fill:#1168BD,stroke:#0B4884,color:#ffffff
+    classDef integ fill:#7030A0,stroke:#4A1F70,color:#ffffff
+    classDef data fill:#5B9BD5,stroke:#3F6F9C,color:#ffffff
+    classDef ops fill:#13A89E,stroke:#0E7F77,color:#ffffff
+    classDef ext fill:#999999,stroke:#6B6B6B,color:#ffffff
+
+    user(["Customer / Partner / Agent<br/>multi-country"]):::channel
+
+    subgraph EDGE["Global Edge"]
+        afd["Azure Front Door + WAF"]:::channel
+    end
+
+    subgraph CHAN["Channel (per Region, active-active)"]
+        apim["API Management"]:::channel
+        bff["Web/Mobile/Partner BFFs<br/><i>NestJS + Fastify</i>"]:::channel
+        domain["Domain Services<br/><i>Quoting · Policy · Payments · Notifications · Catalog · Country</i>"]:::channel
+    end
+
+    subgraph INTEG["Reusable Integration Layer<br/><i>packages/integration-framework</i>"]
+        framework["Resilience Pipeline<br/><b>timeout · retry+jitter · CB (opossum) · bulkhead · idempotency · cache · async · OTel</b>"]:::integ
+        acl["Anti-Corruption Layer<br/><i>per legacy / partner adapters</i>"]:::integ
+    end
+
+    subgraph DATA["Data & State"]
+        sql[("Azure SQL<br/><i>Policy / Payments</i>")]:::data
+        cosmos[("Cosmos DB<br/><i>Quoting drafts / Catalog</i>")]:::data
+        redis[("Azure Cache for Redis<br/><i>Idempotency + cache-aside</i>")]:::data
+        appcfg[("Azure App Configuration<br/><i>flags + per-country config</i>")]:::data
+        kv[("Azure Key Vault<br/><i>secrets</i>")]:::data
+    end
+
+    subgraph ASYNC["Async Backbone"]
+        sb[("Azure Service Bus")]:::data
+        eg[("Event Grid")]:::data
+    end
+
+    subgraph EXT["External Systems"]
+        coreP[("Core Policy")]:::ext
+        coreC[("Core Customer / CRM")]:::ext
+        pay[("Payments Gateway")]:::ext
+        idpB2c[("Entra External ID<br/><i>customers</i>")]:::ext
+        idpWrk[("Microsoft Entra ID<br/><i>staff / partners</i>")]:::ext
+        notif[("Email / SMS / Push providers")]:::ext
+        cat[("Product Catalog / Rates")]:::ext
+        kyc[("Fraud / KYC")]:::ext
+    end
+
+    subgraph OPS["Observability & Ops"]
+        otel["OpenTelemetry Collector"]:::ops
+        appi["Application Insights<br/>SLO dashboards + alerts<br/>+ Log Analytics + Azure Monitor"]:::ops
+        gh["GitHub Actions / Azure DevOps<br/>+ Azure Policy"]:::ops
+    end
+
+    user --> afd --> apim --> bff --> domain --> framework --> acl
+    framework <--> redis
+    framework <--> kv
+    framework <--> appcfg
+    domain <--> sql
+    domain <--> cosmos
+    domain <--> sb
+    sb <--> framework
+    eg <--> framework
+
+    acl --> coreP
+    acl --> coreC
+    acl --> pay
+    acl --> idpB2c
+    acl --> idpWrk
+    acl --> notif
+    acl --> cat
+    acl --> kyc
+
+    domain -. OTel .-> otel
+    framework -. OTel .-> otel
+    bff -. OTel .-> otel
+    otel --> appi
+    gh -- deploy --> bff
+    gh -- deploy --> domain
+    gh -- deploy --> framework

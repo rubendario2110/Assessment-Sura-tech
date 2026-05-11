@@ -1,0 +1,52 @@
+%% C4 - System Context (Level 1)
+%% Multi-Country Digital Direct Channel
+%% Notation: flowchart with C4-style grouping for maximum render compatibility.
+
+flowchart LR
+    classDef person fill:#08427B,stroke:#073B6F,color:#ffffff
+    classDef system fill:#1168BD,stroke:#0B4884,color:#ffffff
+    classDef extSystem fill:#999999,stroke:#6B6B6B,color:#ffffff
+    classDef boundary fill:#ffffff,stroke:#999999,stroke-dasharray: 5 5,color:#333333
+
+    %% Personas
+    customer(["Customer<br/><i>web/mobile, multi-country</i>"]):::person
+    csagent(["Customer Service Agent<br/><i>back-office assisted sales</i>"]):::person
+    partner(["Broker / Partner<br/><i>B2B distribution</i>"]):::person
+    regulator(["Regulator / Compliance Officer<br/><i>per country</i>"]):::person
+
+    subgraph DDC["Digital Direct Channel (System in scope)"]
+        ddc(["Multi-Country Digital Direct Channel<br/><b>Quote · Issue · Pay · Notify</b><br/>Azure-first, active-active multi-region"]):::system
+    end
+
+    %% External Systems
+    coreP[("Core Policy / Underwriting<br/><i>legacy mainframe / packaged core</i>")]:::extSystem
+    coreC[("Core Customer / CRM")]:::extSystem
+    payGw[("Payments Gateway<br/><i>per country</i>")]:::extSystem
+    idpCust[("Customer Identity<br/><i>Microsoft Entra External ID (B2C)</i>")]:::extSystem
+    idpWrk[("Workforce / Partner IdP<br/><i>Microsoft Entra ID</i>")]:::extSystem
+    notif[("Notifications Provider<br/><i>email / SMS / push</i>")]:::extSystem
+    catSrc[("Product Catalog / Rates Source")]:::extSystem
+    fraud[("Fraud / KYC Service")]:::extSystem
+    obs[("Observability Backbone<br/><i>Azure Monitor + App Insights + Log Analytics</i>")]:::extSystem
+
+    %% Customer-facing flows
+    customer -- "Quote / Buy / Self-service<br/>HTTPS" --> ddc
+    csagent -- "Assisted operations<br/>HTTPS" --> ddc
+    partner -- "B2B APIs<br/>HTTPS + mTLS" --> ddc
+    regulator -- "Audit / reports<br/>HTTPS" --> ddc
+
+    %% Outbound integrations
+    ddc -- "Quote/Issue/Endorse<br/>(sync via ACL)" --> coreP
+    ddc -- "Customer profile<br/>(sync + events)" --> coreC
+    ddc -- "Authorize / Capture<br/>(sync + webhooks, idempotent)" --> payGw
+    ddc -- "Customer AuthN (OIDC)" --> idpCust
+    ddc -- "Staff / partner AuthN (OIDC)" --> idpWrk
+    ddc -- "Send notifications<br/>(async via events)" --> notif
+    ddc -- "Reference data<br/>(cache-aside)" --> catSrc
+    ddc -- "Risk / KYC checks<br/>(sync, with timeouts + CB)" --> fraud
+    ddc -- "Telemetry: logs/metrics/traces" --> obs
+
+    %% Notes for resilience expectations on integrations (rendered as labels)
+    %% All outbound calls go through packages/integration-framework (Integration Layer):
+    %% timeouts, retries+jitter, circuit breaker (opossum), bulkhead, idempotency,
+    %% async messaging where applicable, and trace propagation (W3C traceparent).
