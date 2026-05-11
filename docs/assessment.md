@@ -230,9 +230,17 @@ The reusable layer lives in **`packages/integration-framework`** (`@assessment/i
 
 Typed errors (`TimeoutError`, `CircuitOpenError`, `UpstreamError`, `ValidationError`) are mapped to HTTP responses in `interfaces/http/integration-error.mapper.ts`.
 
-### Runtime caveat — NestJS DI + `tsx`
+### Runtime caveat — NestJS DI and TypeScript runners
 
-Bootstrapping with `tsx` **drops `emitDecoratorMetadata`**, so Nest cannot resolve decorated constructor parameters reliably. Always run from compiled output (`pnpm build && node dist/contexts/<bc>/main.js`). All `pnpm start:*`, `pnpm openapi:generate`, and `pnpm test:reliability` scripts compile first.
+Nest resolves constructor dependencies via **`reflect-metadata`**, which requires **`emitDecoratorMetadata`** (emitted by **`tsc`**, configured in `tsconfig.json`). Fast transpilers such as **`tsx`** or a bare **esbuild** pipeline often **omit** that metadata, so **`@Inject()`** and similar constructor injection can break even though the source is valid TypeScript.
+
+**Recommended for CI / release parity:** `pnpm build` then **`pnpm start:*`** (`node dist/contexts/<bc>/main.js`). Produces clean `dist/` for deployment and matches compiled-only workflows.
+
+**Scripts without compiling app sources:** **`pnpm test:reliability`**, **`pnpm openapi:generate`**, and **`pnpm docs:api`** run TypeScript via **`node --loader ts-node/esm`** after **`pnpm integration-framework:build`** only (the workspace library is still loaded from **`packages/integration-framework/dist`**). The reliability harness spawns channel/upstream the same way unless **`RELIABILITY_USE_DIST=1`** is set (then it uses **`dist/contexts/*/main.js`** and expects a prior **`pnpm build`**).
+
+**Interactive dev without app `dist/`:** **`pnpm start:dev:upstream`** / **`pnpm start:dev:channel`** — same **`ts-node`** loader on **`src/contexts/*/main.ts`**, with **`prestart:dev:*`** running **`pnpm integration-framework:build`**.
+
+**Other options:** Nest CLI dev backed by `tsc`, or `ts-node` configured for full compilation. Avoid **`tsx`** for these entrypoints unless you add a compatible compilation step — it typically omits `emitDecoratorMetadata`.
 
 ### Automated tests (TDD evidence)
 
@@ -282,16 +290,22 @@ Each bounded context follows **domain → application → infrastructure → int
 
 | Path | Role |
 | --- | --- |
-| `src/test/reliability-test.ts` | After `pnpm build`, spawns `dist/contexts/*/main.js`, drives failures, summarizes breaker / idempotency behaviour |
+| `src/test/reliability-test.ts` | Spawns channel/upstream (TypeScript via **`ts-node`** by default, or **`dist/`** if **`RELIABILITY_USE_DIST=1`**), drives failures, summarizes breaker / idempotency behaviour |
 
 ### How to run locally
 
 ```bash
 pnpm install
-pnpm build
-UPSTREAM_PORT=3001 node dist/contexts/upstream/main.js
+pnpm integration-framework:build   # always required for the workspace package
+# Option A — no app compile:
+UPSTREAM_PORT=3001 pnpm start:dev:upstream
 # second terminal:
-CHANNEL_PORT=3000 UPSTREAM_URL=http://127.0.0.1:3001 SERVICE_NAME=channel node dist/contexts/channel/main.js
+CHANNEL_PORT=3000 UPSTREAM_URL=http://127.0.0.1:3001 SERVICE_NAME=channel pnpm start:dev:channel
+
+# Option B — compiled apps:
+pnpm build
+UPSTREAM_PORT=3001 pnpm start:upstream
+CHANNEL_PORT=3000 UPSTREAM_URL=http://127.0.0.1:3001 SERVICE_NAME=channel pnpm start:channel
 ```
 
 Channel Swagger UI: `http://127.0.0.1:3000/api/docs` · OpenAPI JSON on the same app: `http://127.0.0.1:3000/api/openapi.json`
@@ -299,7 +313,7 @@ Channel Swagger UI: `http://127.0.0.1:3000/api/docs` · OpenAPI JSON on the same
 ### Reliability harness
 
 ```bash
-pnpm test:reliability   # runs `pnpm build` then `dist/test/reliability-test.js`
+pnpm test:reliability   # integration-framework build + ts-node harness + TS apps (see README for RELIABILITY_USE_DIST)
 ```
 
 The JSON summary includes log lines with **`breakerState`** (`open`, `halfOpen`, `closed`) and idempotency checks on `POST /demo/order`.

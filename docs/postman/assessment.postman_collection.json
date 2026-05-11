@@ -1,7 +1,7 @@
 {
   "item": [
     {
-      "id": "b8d3b16b-e940-4fff-97a4-500a44aa3242",
+      "id": "1b4de9a5-8cb5-4daa-aa73-44b989654650",
       "name": "Liveness probe",
       "request": {
         "name": "Liveness probe",
@@ -21,7 +21,7 @@
       },
       "response": [
         {
-          "id": "ce5fff39-409c-4fdf-829e-4972b68fab5b",
+          "id": "5687c485-01d0-4ce3-8c0e-36cca3dcf388",
           "originalRequest": {
             "url": {
               "path": [
@@ -55,11 +55,11 @@
       }
     },
     {
-      "id": "73747fee-6095-4384-96f7-99f068560865",
+      "id": "10d588ee-4474-4620-b58e-f6463b2278e1",
       "name": "demo",
       "item": [
         {
-          "id": "0020ff32-6497-46c4-ab39-b35052811599",
+          "id": "1c7359c7-a6c2-46eb-a232-8e58e0d7ad04",
           "name": "Call flaky upstream through the integration framework",
           "request": {
             "name": "Call flaky upstream through the integration framework",
@@ -105,7 +105,7 @@
           },
           "response": [
             {
-              "id": "dace15f6-7ae0-495b-b002-86af9e015d01",
+              "id": "9d614a77-c05e-46b3-ba24-e8359d78abb3",
               "originalRequest": {
                 "url": {
                   "path": [
@@ -157,7 +157,7 @@
           }
         },
         {
-          "id": "f1dd1b1b-c9f2-4e47-9879-b9e137736d32",
+          "id": "311c12a4-8458-49ab-a3b0-ff049c1ee10b",
           "name": "Mutation with optional idempotency key (demo Map dedupe)",
           "request": {
             "name": "Mutation with optional idempotency key (demo Map dedupe)",
@@ -199,7 +199,7 @@
           },
           "response": [
             {
-              "id": "1cd14aa3-14ec-4b31-99a6-c91afc650977",
+              "id": "9e1d5985-49be-47f8-908b-21d08002e436",
               "originalRequest": {
                 "url": {
                   "path": [
@@ -262,7 +262,7 @@
     }
   ],
   "info": {
-    "_postman_id": "ee66233a-cbb0-4471-b3f2-b15c6f33b74d",
+    "_postman_id": "8b1b2e6c-443c-409a-a0b6-ace6449fac0c",
     "name": "Assessment — Channel",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "description": {

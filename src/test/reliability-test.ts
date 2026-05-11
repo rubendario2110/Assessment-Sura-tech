@@ -26,6 +26,18 @@ function runService(cmd: string, args: string[], env: NodeJS.ProcessEnv): ChildP
   });
 }
 
+// Apps run from TypeScript via ts-node unless RELIABILITY_USE_DIST=1 (then dist/contexts/<context>/main.js).
+function nodeArgsForApp(context: "upstream" | "channel"): string[] {
+  if (process.env.RELIABILITY_USE_DIST === "1") {
+    return [`dist/contexts/${context}/main.js`];
+  }
+  return ["--loader", "ts-node/esm", `src/contexts/${context}/main.ts`];
+}
+
+function runNestApp(context: "upstream" | "channel", env: NodeJS.ProcessEnv): ChildProcess {
+  return runService("node", nodeArgsForApp(context), env);
+}
+
 function pipeStructuredLogs(stream: NodeJS.ReadableStream, bucket: string[]): void {
   stream.on("data", (chunk: Buffer) => {
     for (const line of chunk.toString().split("\n")) {
@@ -36,10 +48,10 @@ function pipeStructuredLogs(stream: NodeJS.ReadableStream, bucket: string[]): vo
 }
 
 async function main(): Promise<void> {
-  const upstream = runService("node", ["dist/contexts/upstream/main.js"], {
+  const upstream = runNestApp("upstream", {
     UPSTREAM_PORT: UP_PORT,
   });
-  const channel = runService("node", ["dist/contexts/channel/main.js"], {
+  const channel = runNestApp("channel", {
     CHANNEL_PORT: CH_PORT,
     UPSTREAM_URL: `http://127.0.0.1:${UP_PORT}`,
     SERVICE_NAME: "channel-reliability",

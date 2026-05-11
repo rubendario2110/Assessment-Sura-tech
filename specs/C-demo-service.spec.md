@@ -6,7 +6,7 @@ Build a small **demo service** (assessment Section C) that uses the integration 
 ## Scope
 - `channel` bounded context (NestJS + Fastify under `src/contexts/channel/`): exposes a public endpoint that invokes the upstream through `@assessment/integration-framework`.
 - `upstream` bounded context (NestJS + Fastify under `src/contexts/upstream/`): simulates flakiness (random latency, intermittent 5xx, sustained outages, slow responses) controlled via env vars or query parameters.
-- Reliability exercise: `src/test/reliability-test.ts` driven by **`pnpm test:reliability`** (builds, runs compiled services, drives flaky scenarios, surfaces breaker timeline / summary).
+- Reliability exercise: `src/test/reliability-test.ts` driven by **`pnpm test:reliability`** (builds **`@assessment/integration-framework`** only; runs harness + channel/upstream via **`ts-node`** by default, or **`dist/`** when **`RELIABILITY_USE_DIST=1`**; surfaces breaker timeline / summary).
 - Demo runtime infrastructure with Docker Compose:
   - `redis` service for idempotency/cache demo needs.
   - `otel-collector` service for telemetry ingestion.
@@ -23,7 +23,7 @@ Build a small **demo service** (assessment Section C) that uses the integration 
 - Logs include `traceparent`-derived trace ids and structured fields suitable for triage.
 
 ## Non-Functional Requirements
-- **Build-then-run**: NestJS DI requires compiled output — use **`pnpm build`** then run from `dist/` (or use repo scripts that encapsulate this); avoid running raw Nest controllers through `tsx` for integration demos (metadata loss).
+- **Nest DI + TypeScript**: preserve **`emitDecoratorMetadata`** — use **`pnpm build`** + **`pnpm start:*`**, or **`pnpm start:dev:*`** / **`pnpm test:reliability`** / **`pnpm openapi:generate`** (these use **`node --loader ts-node/esm`**). Avoid **`tsx`** for Nest entrypoints unless metadata is preserved.
 - Local-first: runnable with `pnpm` and Node.js without external infrastructure for core flows.
 - Containerized observability/runtime support: runnable with `docker compose` for Redis + OTel + trace backend.
 - Deterministic-enough demo: reliability script outcomes are reproducible within reasonable variance.
@@ -31,7 +31,7 @@ Build a small **demo service** (assessment Section C) that uses the integration 
 - Observability: every request emits structured JSON logs with trace ids.
 
 ## Acceptance Criteria
-- `channel` and `upstream` services start with documented commands (e.g. `pnpm build` plus `node dist/contexts/channel/main.js` / `node dist/contexts/upstream/main.js`, or equivalent `pnpm start:*` scripts).
+- `channel` and `upstream` services start with documented commands (**`pnpm start:dev:*`** without app compile, or **`pnpm build`** then **`pnpm start:*`** / **`dist/`**).
 - **`pnpm demo:config`** validates `docker-compose.demo.yml` syntax without a daemon.
 - **`pnpm demo:up`** / **`pnpm demo:down`** manage Redis + OTel Collector + Jaeger (requires Docker when exercising observability stack).
 - Under upstream failures, `channel` returns degraded-but-controlled responses (e.g., 502/503 with structured error body) instead of cascading failures.
