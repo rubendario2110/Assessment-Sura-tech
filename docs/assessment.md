@@ -2,18 +2,33 @@
 
 > **Implementation status:** The repository ships **`packages/integration-framework`** (`@assessment/integration-framework`), demo bounded contexts **`src/contexts/channel`** and **`src/contexts/upstream`** with DDD layering, the **`pnpm test:reliability`** harness, OpenAPI/Postman artifacts, and the demo Compose stack. Sections **A** and **D** remain the target architecture and decision narrative; **B**/**C** describe the delivered design and how to run it.
 
+## Documentation index (all linked artefacts)
+
+| Category | Documents |
+| --- | --- |
+| **Entry points** | [README.md](../README.md) (install, scripts, demo verification) · [assessment-input.md](./assessment-input.md) (captured brief) · **this file** [assessment.md](./assessment.md) |
+| **Executable specs** | [A-architecture.spec.md](../specs/A-architecture.spec.md) · [B-integration-framework.spec.md](../specs/B-integration-framework.spec.md) · [C-demo-service.spec.md](../specs/C-demo-service.spec.md) · [D-tdr.spec.md](../specs/D-tdr.spec.md) |
+| **C4 & architecture diagrams** | [architecture.mmd](./architecture.mmd) · [c4-system-context.mmd](./c4-system-context.mmd) · [c4-container.mmd](./c4-container.mmd) · [c4-component-integration-layer.mmd](./c4-component-integration-layer.mmd) · [c4-diagram-explanations.md](./c4-diagram-explanations.md) |
+| **Scrum / backlog** | [plan-scrum.md](./plan-scrum.md) · [backlog.md](./backlog.md) · [sprint-status.md](./sprint-status.md) |
+| **API exports** | [openapi.json](./api/openapi.json) · [assessment.postman_collection.json](./postman/assessment.postman_collection.json) |
+| **Observability demo** | [docker-compose.demo.yml](../docker-compose.demo.yml) · [otel-collector-config.yaml](../observability/otel-collector-config.yaml) |
+| **Agent evidence** | [spec-agent-evidence.md](./evidence/spec-agent-evidence.md) · [planning-agent-evidence.md](./evidence/planning-agent-evidence.md) · [architecture-agent-evidence.md](./evidence/architecture-agent-evidence.md) · [implementation-agent-evidence.md](./evidence/implementation-agent-evidence.md) · [review-agent-evidence.md](./evidence/review-agent-evidence.md) |
+
+---
+
 ## Section A — Architecture & Roadmap
 
 ### A.1 — End-to-End Target Architecture
 
 The Multi-Country Digital Direct Channel is an Azure-first, active-active, multi-region platform that lets customers, agents, and partners quote, issue, pay, and manage insurance products across countries. It is structured with Domain-Driven Design (DDD), exposed through an API Gateway + BFFs, served by stateless domain services, and integrated with legacy and partner systems through a single reusable Integration Layer that owns all resilience and observability concerns.
 
-Diagrams (rendered with Mermaid; integration implementation home: **`packages/integration-framework`**):
-- System Context: `docs/c4-system-context.mmd`
-- Container: `docs/c4-container.mmd`
-- Component (Integration Layer): `docs/c4-component-integration-layer.mmd`
-- Executive overview: `docs/architecture.mmd`
-- Diagram explanations (Purpose · Scope · Elements · Flows · Resilience/Ops · Decisions/Tradeoffs): `docs/c4-diagram-explanations.md`
+Diagrams (rendered with Mermaid; integration implementation home: **`packages/integration-framework`**). Same files are listed in **Documentation index** above.
+
+- System Context: [c4-system-context.mmd](./c4-system-context.mmd)
+- Container: [c4-container.mmd](./c4-container.mmd)
+- Component (Integration Layer): [c4-component-integration-layer.mmd](./c4-component-integration-layer.mmd)
+- Executive overview: [architecture.mmd](./architecture.mmd)
+- Diagram explanations (purpose, scope, elements, flows, resilience/ops, trade-offs): [c4-diagram-explanations.md](./c4-diagram-explanations.md)
 
 #### A.1.1 Domain-Driven Design
 
@@ -169,7 +184,7 @@ NFR mapping (resilience controls → NFR):
 
 ### A.3 — 12-Week Technical Roadmap
 
-Three workstreams executed in parallel; quality gates at the end of each fortnight (aligned with `docs/plan-scrum.md`).
+Three workstreams executed in parallel; quality gates at the end of each fortnight (aligned with [plan-scrum.md](./plan-scrum.md)).
 
 | Week | Reliability | Integration Modernization | Observability / Operations |
 | --- | --- | --- | --- |
@@ -236,7 +251,7 @@ Nest resolves constructor dependencies via **`reflect-metadata`**, which require
 
 **Recommended for CI / release parity:** `pnpm build` then **`pnpm start:*`** (`node dist/contexts/<bc>/main.js`). Produces clean `dist/` for deployment and matches compiled-only workflows.
 
-**Scripts without compiling app sources:** **`pnpm test:reliability`**, **`pnpm openapi:generate`**, and **`pnpm docs:api`** run TypeScript via **`node --loader ts-node/esm`** after **`pnpm integration-framework:build`** only (the workspace library is still loaded from **`packages/integration-framework/dist`**). The reliability harness spawns channel/upstream the same way unless **`RELIABILITY_USE_DIST=1`** is set (then it uses **`dist/contexts/*/main.js`** and expects a prior **`pnpm build`**).
+**Scripts without compiling app sources:** **`pnpm test:reliability`**, **`pnpm openapi:generate`**, and **`pnpm docs:api`** run TypeScript via **`node --loader ts-node/esm`** after **`pnpm integration-framework:build`** only (the workspace library is still loaded from **`packages/integration-framework/dist`**). The reliability harness spawns channel/upstream the same way unless **`RELIABILITY_USE_DIST=1`** is set (then it uses **`dist/contexts/*/main.js`** and expects a prior **`pnpm build`**). Command details: [README.md](../README.md).
 
 **Interactive dev without app `dist/`:** **`pnpm start:dev:upstream`** / **`pnpm start:dev:channel`** — same **`ts-node`** loader on **`src/contexts/*/main.ts`**, with **`prestart:dev:*`** running **`pnpm integration-framework:build`**.
 
@@ -313,7 +328,7 @@ Channel Swagger UI: `http://127.0.0.1:3000/api/docs` · OpenAPI JSON on the same
 ### Reliability harness
 
 ```bash
-pnpm test:reliability   # integration-framework build + ts-node harness + TS apps (see README for RELIABILITY_USE_DIST)
+pnpm test:reliability   # integration-framework build + ts-node harness + TS apps (see README.md for RELIABILITY_USE_DIST)
 ```
 
 The JSON summary includes log lines with **`breakerState`** (`open`, `halfOpen`, `closed`) and idempotency checks on `POST /demo/order`.
@@ -326,12 +341,12 @@ The JSON summary includes log lines with **`breakerState`** (`open`, `halfOpen`,
 
 ### API artifacts
 
-- Machine-readable OpenAPI: `docs/api/openapi.json` (`pnpm openapi:generate`)
-- Postman Collection v2.1: `docs/postman/assessment.postman_collection.json` (`pnpm postman:generate`)
+- Machine-readable OpenAPI: [openapi.json](./api/openapi.json) — regenerate with **`pnpm openapi:generate`** (see [README.md](../README.md)).
+- Postman Collection v2.1: [assessment.postman_collection.json](./postman/assessment.postman_collection.json) — regenerate with **`pnpm postman:generate`** or **`pnpm docs:api`**.
 
 ## Section D — Technical Decision Record
 
-One-page decision-grade narrative covering **two** program-level architecture choices. Both align with Spec A (target architecture), Spec B (integration framework), and Section A.1.4 (SLO catalog).
+One-page decision-grade narrative covering **two** program-level architecture choices. Both align with [A-architecture.spec.md](../specs/A-architecture.spec.md) (target architecture), [B-integration-framework.spec.md](../specs/B-integration-framework.spec.md) (integration framework), and Section A.1.4 (SLO catalog). Spec D: [D-tdr.spec.md](../specs/D-tdr.spec.md).
 
 ---
 
@@ -375,17 +390,19 @@ One-page decision-grade narrative covering **two** program-level architecture ch
 
 | Topic | Where reflected |
 | --- | --- |
-| Hybrid integration ownership | Section A.2 (Integration patterns), `packages/integration-framework` (`ResilientHttpClient`), L3 component diagram |
-| Hybrid sync/async | Section A.2 items 7–8 (async + trace), A.1.4 SLO scope for sync segments |
+| Hybrid integration ownership | Section A.2 (Integration patterns), [`packages/integration-framework`](../packages/integration-framework/) (`ResilientHttpClient`), L3 diagram [c4-component-integration-layer.mmd](./c4-component-integration-layer.mmd), Spec [B-integration-framework.spec.md](../specs/B-integration-framework.spec.md) |
+| Hybrid sync/async | Section A.2 items 7–8 (async + trace), A.1.4 SLO scope for sync segments, Spec [D-tdr.spec.md](../specs/D-tdr.spec.md) |
 | Error budgets | Section A.1.4 error budget policy |
+| Demo / reliability | Section C, Spec [C-demo-service.spec.md](../specs/C-demo-service.spec.md), harness [reliability-test.ts](../src/test/reliability-test.ts) |
+| Planning cadence | [plan-scrum.md](./plan-scrum.md), [backlog.md](./backlog.md), [sprint-status.md](./sprint-status.md) |
 
 ## Submission Checklist
 
 - [x] Section A architecture, DDD framing, and 12-week roadmap completed.
-- [x] C4 diagrams (System Context, Container, Component) committed under `docs/`.
-- [x] Executive overview diagram updated.
-- [x] Diagram explanations published in `docs/c4-diagram-explanations.md` (L1/L2/L3 C4 files; executive overview aligned in `docs/architecture.mmd`).
-- [x] Section B — integration framework **code** (`packages/integration-framework`) and design notes aligned with the implementation.
-- [x] Section C — demo runbook, DDD layout, and failure behaviour (`src/contexts/*`, `pnpm test:reliability`).
-- [x] Section D — TDR (one page, two decisions).
-- [ ] All evidence logs updated in `docs/evidence/` (`spec`, `planning`, `architecture`, `implementation`, `review`) — **refresh after each implementation milestone**.
+- [x] C4 diagrams (System Context, Container, Component): [c4-system-context.mmd](./c4-system-context.mmd), [c4-container.mmd](./c4-container.mmd), [c4-component-integration-layer.mmd](./c4-component-integration-layer.mmd).
+- [x] Executive overview: [architecture.mmd](./architecture.mmd).
+- [x] Diagram explanations: [c4-diagram-explanations.md](./c4-diagram-explanations.md) (L1/L2/L3 + executive overview alignment).
+- [x] Section B — integration framework **code** ([`packages/integration-framework`](../packages/integration-framework/)) and design notes aligned with the implementation; Spec B: [B-integration-framework.spec.md](../specs/B-integration-framework.spec.md).
+- [x] Section C — demo runbook, DDD layout, failure behaviour; Spec C: [C-demo-service.spec.md](../specs/C-demo-service.spec.md); runbook also in [README.md](../README.md).
+- [x] Section D — TDR (two decisions); Spec D: [D-tdr.spec.md](../specs/D-tdr.spec.md).
+- [ ] Evidence logs — refresh after each milestone: [spec-agent-evidence.md](./evidence/spec-agent-evidence.md), [planning-agent-evidence.md](./evidence/planning-agent-evidence.md), [architecture-agent-evidence.md](./evidence/architecture-agent-evidence.md), [implementation-agent-evidence.md](./evidence/implementation-agent-evidence.md), [review-agent-evidence.md](./evidence/review-agent-evidence.md).
