@@ -1,6 +1,6 @@
 # Technical Lead Practical Assessment
 
-> **Implementation status:** Application code was **reset to start from scratch** (workspace placeholder under `src/` only). Sections **A** (architecture, roadmap, diagrams) and **D** (TDRs) remain the intended target narrative. Sections **B** and **C** describe the **expected** framework and demo — re-implement per `specs/*.spec.md`, `docs/backlog.md`, and `docs/plan-scrum.md` (`packages/integration-framework`, `src/contexts/*`, `test/unit/**`, demo Compose stack).
+> **Implementation status:** The repository ships **`packages/integration-framework`** (`@assessment/integration-framework`), demo bounded contexts **`src/contexts/channel`** and **`src/contexts/upstream`** with DDD layering, the **`pnpm test:reliability`** harness, OpenAPI/Postman artifacts, and the demo Compose stack. Sections **A** and **D** remain the target architecture and decision narrative; **B**/**C** describe the delivered design and how to run it.
 
 ## Section A — Architecture & Roadmap
 
@@ -133,7 +133,7 @@ This catalog is consistent with the observability path in Section A.1.2 (`OpenTe
 
 ### A.2 — Integration Patterns
 
-All integrations are realized through the Integration Layer. The **canonical reusable implementation** is the TypeScript package under **`packages/integration-framework`** (workspace package `@assessment/integration-framework` per Spec B), consumed by domain services as a **Hexagonal port/adapter–friendly** client (`IntegrationHttpClient` and helpers). Section B/C may reference demo paths for historical layout; **architecture, governance, and diagrams treat `packages/integration-framework` as the integration-home**.
+All integrations are realized through the Integration Layer. The **canonical reusable implementation** is the TypeScript package under **`packages/integration-framework`** (workspace package `@assessment/integration-framework` per Spec B), consumed by domain services as a **Hexagonal port/adapter–friendly** client (`ResilientHttpClient` and helpers). Section B/C may reference demo paths for historical layout; **architecture, governance, and diagrams treat `packages/integration-framework` as the integration-home**.
 
 The Integration Layer exposes a single client SDK contract to domain services and applies the following controls in a deterministic composition order:
 
@@ -205,94 +205,110 @@ Workstream exit criteria:
 
 ### Implementation outline
 
-The reusable integration layer ships as the workspace package **`packages/integration-framework`** (import alias **`@assessment/integration-framework`**). Domain services obtain a Nest-friendly **`IntegrationHttpClient`** from `packages/integration-framework/src/http-client.ts`, typically via a small infrastructure provider that calls `loadIntegrationConfig`, `createLogger`, and `new IntegrationHttpClient(...)`. Outbound calls execute with fixed composition: **bulkhead (async semaphore) → `opossum` circuit breaker → bounded retries with exponential backoff + jitter → `fetch` + `AbortSignal` timeout**.
+The reusable layer lives in **`packages/integration-framework`** (`@assessment/integration-framework`). The public client is **`ResilientHttpClient`**: **bulkhead → `opossum` → retries with backoff+jitter → `fetch` + `AbortSignal`**. Configuration via **`loadIntegrationConfig`** (`IF_*` env vars), JSON logs via **`createJsonLogger`**, **`traceparent`** propagation, and idempotency helpers exported from the package entrypoint.
 
 ### Design decisions
 
 | Decision | Rationale |
 | --- | --- |
-| `opossum` mandatory CB | Assessment/repo standard; exposes `open`, `halfOpen`, `close`, `reject`, `failure`, `success`, `timeout` events for structured logs. |
-| CB timeout disabled (`timeout: false`) | Avoid duplicate timers vs HTTP-level deadline (`INTEGRATION_TIMEOUT_MS` via `AbortController`). |
-| Retries inside `breaker.fire` | One CB observation per logical outbound invocation after retries exhaust — avoids counting each retry as independent breaker stats while still absorbing bursts. |
-| Centralised JSON logging | `logger.ts` emits single-line JSON suitable for Log Analytics / ELK; circuit events logged at `info` with field `message":"circuit_breaker"`. |
-| W3C `traceparent` | Parsed/generated in `tracing.ts`; propagated as HTTP header on upstream calls. |
-| Idempotency keys | `generateIdempotencyKey()` + `Idempotency-Key` header for mutation-style demos (upstream dedupes in-memory). |
+| `opossum` mandatory CB | Assessment/repo standard; listeners record `open` / `halfOpen` / `close` transitions in JSON logs. |
+| HTTP deadline with `AbortController` | Separate from the breaker’s optional internal timer; failures surface as `TimeoutError`. |
+| Retries wrapping `breaker.fire` | Retryable failures increment breaker statistics without masking sustained outages. |
+| Centralised JSON logging | `createJsonLogger` emits fields such as `traceId`, `dependency`, `attempt`, `outcome`, `latencyMs`. |
+| W3C `traceparent` | Generated/propagated on every outbound call from `ResilientHttpClient`. |
+| Idempotency | `createIdempotencyKey()` and standard header; durable dedupe stays outside the framework (demo channel uses an in-memory `Map`). |
 
 ### Configuration (`US-009`)
 
 | Env var | Purpose |
 | --- | --- |
-| `SERVICE_NAME` | Service label inside logs |
-| `INTEGRATION_TIMEOUT_MS` | Per-attempt HTTP deadline |
-| `INTEGRATION_MAX_ATTEMPTS` | Total attempts including first try |
-| `INTEGRATION_BASE_DELAY_MS`, `INTEGRATION_MAX_DELAY_MS`, `INTEGRATION_JITTER_RATIO` | Backoff + jitter |
-| `INTEGRATION_BULKHEAD_MAX_CONCURRENT` | Concurrent upstream calls per dependency id |
-| `OPOSSUM_*` | Volume/threshold/rolling window/reset timeout |
+| `SERVICE_NAME` | Service label in logs |
+| `IF_HTTP_TIMEOUT_MS` | Per-attempt HTTP deadline |
+| `IF_RETRY_MAX_ATTEMPTS`, `IF_RETRY_BASE_MS`, `IF_RETRY_MAX_MS`, `IF_RETRY_JITTER_RATIO` | Retries + jitter |
+| `IF_BULKHEAD_MAX_CONCURRENT` | Maximum concurrent outbound calls |
+| `IF_BREAKER_*` | `opossum` breaker thresholds |
 
-Typed errors (`errors.ts`): `TimeoutError`, `CircuitOpenError`, `UpstreamError`, `BulkheadFullError`, … map cleanly to HTTP semantics in the Channel controller.
+Typed errors (`TimeoutError`, `CircuitOpenError`, `UpstreamError`, `ValidationError`) are mapped to HTTP responses in `interfaces/http/integration-error.mapper.ts`.
 
 ### Runtime caveat — NestJS DI + `tsx`
 
-Bootstrapping with `tsx` **drops `emitDecoratorMetadata`**, so Nest (and `@nestjs/cqrs` handlers) cannot resolve constructor parameters such as `IntegrationHttpClient`. Always run from compiled output (`pnpm build && node dist/contexts/<bc>/main.js`). All `pnpm start:*`, `pnpm openapi:generate`, and `pnpm test:reliability` scripts compile first.
+Bootstrapping with `tsx` **drops `emitDecoratorMetadata`**, so Nest cannot resolve decorated constructor parameters reliably. Always run from compiled output (`pnpm build && node dist/contexts/<bc>/main.js`). All `pnpm start:*`, `pnpm openapi:generate`, and `pnpm test:reliability` scripts compile first.
 
 ### Automated tests (TDD evidence)
 
-Specs run on **Jest** (`ts-jest/presets/default-esm` + `--experimental-vm-modules`), aligned with the official NestJS preset:
+**Jest** ESM (`ts-jest` + `--experimental-vm-modules`):
 
-- `test/unit/packages/integration-framework/*.spec.ts` — config, tracing, retry/bulkhead/CB, typed errors, mocked `fetch` contract for `IntegrationHttpClient`.
-- `test/unit/contexts/upstream/application/commands/echo.handler.spec.ts` — CQRS handler validated end-to-end with `@nestjs/testing` (idempotent replay, flaky failure mode).
-- `test/unit/contexts/channel/application/commands/invoke-upstream.handler.spec.ts` — CQRS handler validates success path and translates `CircuitOpenError` into `ChannelHttpException(503)`.
+- `test/unit/framework/**` — `integration-framework` policies (retry, breaker, bulkhead, config, etc.).
+- `test/unit/contexts/**` — channel/upstream use cases, HTTP mapper, client factory.
+- `test/integration/**` — Nest+Fastify apps with `@nestjs/testing` and Fastify `inject`.
 
 ---
 
 ## Section C — Demo Service & Reliability Test
 
-### Components (DDD + CQRS layout)
+### DDD layout per bounded context
 
-Both bounded contexts follow the same shape: `domain/` (value objects, events, ports), `application/` (CQRS commands, queries, handlers, DTOs), `infrastructure/` (in-memory adapters, DI providers and tokens), `interfaces/http/` (NestJS controllers that simply translate HTTP → command/query bus).
+Each bounded context follows **domain → application → infrastructure → interfaces/http**. Controllers only adapt HTTP; business rules live in **domain** (pure policies, events, ports) and **application** (use cases). Infrastructure supplies demo adapters (in-memory `Map`, resilient client, no-op event sinks).
+
+#### Upstream (`src/contexts/upstream/`)
+
+| Folder | Contents |
+| --- | --- |
+| `domain/` | `flaky.types.ts`, `flaky-simulation.policy.ts` (`evaluateFlakyPlan`), port `domain-events.sink.port.ts`, **events** `upstream-simulation-evaluated.event.ts`, `upstream-resource-served.event.ts` |
+| `application/` | `serve-resource.use-case.ts` — evaluates policy, applies simulated delay, publishes via `UpstreamDomainEventsSink` |
+| `infrastructure/` | `noop-upstream-domain-events.sink.ts`, `tokens.ts` (`UPSTREAM_DOMAIN_EVENTS_SINK`) |
+| `interfaces/http/` | `flaky.controller.ts` — `GET /health`, `GET /resource` (query: `mode`, `seed`, `failRate`, `slowMs`, `latencyMs`) |
+
+**Domain events (demo; no message bus or persistence):** after the simulation plan is computed, `UpstreamSimulationEvaluatedEvent` is emitted; when the HTTP response is finalized, `UpstreamResourceServedEvent` is emitted (`ok` \| `fail`). The default **`NoOpUpstreamDomainEventsSink`** drops events; swap in an adapter to publish to Azure Service Bus / outbox.
+
+#### Channel (`src/contexts/channel/`)
+
+| Folder | Contents |
+| --- | --- |
+| `domain/` | `order.types.ts`, ports `idempotency-store.port.ts`, `domain-events.sink.port.ts`, **events** `order-placed.event.ts`, `order-idempotent-replay.event.ts`, `upstream-proxy-succeeded.event.ts` |
+| `application/` | `invoke-upstream.use-case.ts`, `place-order.use-case.ts` |
+| `infrastructure/` | `in-memory-idempotency.store.ts`, `upstream-http-client.factory.ts`, `noop-channel-domain-events.sink.ts`, `tokens.ts` |
+| `interfaces/http/` | `demo.controller.ts`, `integration-error.mapper.ts` |
+
+**Domain events (demo):** `OrderPlacedEvent` on first acceptance of an order; `OrderIdempotentReplayEvent` when the same `Idempotency-Key` is submitted again; `UpstreamProxySucceededEvent` after a successful HTTP GET to upstream (if the resilient client throws, this event is not emitted — errors map to **502 / 503 / 504**). Default **`NoOpChannelDomainEventsSink`**.
+
+#### Shared library
 
 | Path | Role |
 | --- | --- |
-| `src/contexts/upstream/` | Flaky upstream BC — `EchoCommand`, `UpdateFailureRateCommand`, `GetUpstreamStatusQuery`; in-memory `IdempotencyStore` + `FailureRateRepository` |
-| `src/contexts/channel/` | Outbound BC — `InvokeUpstreamCommand`, `GetIntegrationStatusQuery`, value objects `IdempotencyKey` / `ChannelTraceContext`, domain events `UpstreamCallSucceededEvent` / `UpstreamCallRejectedEvent`; wires **`@assessment/integration-framework`** via `integration-http-client.provider.ts` |
-| `packages/integration-framework/` | Shared library — `IntegrationHttpClient` (`opossum` + bulkhead + retry + timeout + `traceparent`), config/logger/errors/idempotency helpers; consumed by Channel (and any other service) as the single outbound integration surface |
-| `src/test/reliability-test.ts` | Spawns compiled `dist/contexts/*/main.js`, drives failure → open circuit → recovery |
+| `packages/integration-framework/` | **`ResilientHttpClient`** + config/logging/trace/idempotency + typed errors |
 
-Upstream exposes `GET /upstream/simulate/config?failureRate=` (handled via `UpdateFailureRateCommand`) for runtime tuning (default seeded by `UPSTREAM_FAILURE_RATE`).
+#### Harness
+
+| Path | Role |
+| --- | --- |
+| `src/test/reliability-test.ts` | After `pnpm build`, spawns `dist/contexts/*/main.js`, drives failures, summarizes breaker / idempotency behaviour |
 
 ### How to run locally
 
 ```bash
 pnpm install
 pnpm build
-UPSTREAM_PORT=3001 SERVICE_NAME=upstream node dist/contexts/upstream/main.js &
-CHANNEL_PORT=3000 UPSTREAM_BASE_URL=http://127.0.0.1:3001 SERVICE_NAME=channel node dist/contexts/channel/main.js &
+UPSTREAM_PORT=3001 node dist/contexts/upstream/main.js
+# second terminal:
+CHANNEL_PORT=3000 UPSTREAM_URL=http://127.0.0.1:3001 SERVICE_NAME=channel node dist/contexts/channel/main.js
 ```
 
-(Prefer placing each command in its own terminal session instead of background `&` for clarity.)
-
-Swagger UI (generated decorators):
-
-- Channel: `http://127.0.0.1:3000/channel/api-docs`
-- Upstream: `http://127.0.0.1:3001/upstream/api-docs`
+Channel Swagger UI: `http://127.0.0.1:3000/api/docs` · OpenAPI JSON on the same app: `http://127.0.0.1:3000/api/openapi.json`
 
 ### Reliability harness
 
 ```bash
-pnpm test:reliability   # runs `pnpm build` then orchestrates both services
+pnpm test:reliability   # runs `pnpm build` then `dist/test/reliability-test.js`
 ```
 
-Expected stdout highlights JSON lines where **`breakerEvent` transitions through `open → halfOpen → close`** once upstream failures cease after `resetTimeout`.
+The JSON summary includes log lines with **`breakerState`** (`open`, `halfOpen`, `closed`) and idempotency checks on `POST /demo/order`.
 
-### Failure behaviour narrative
+### Failure behaviour
 
-1. With `failureRate=1`, upstream returns HTTP 503 → retries exhaust → **`UpstreamError`** bubbles → **`opossum`** records failures → circuit **`open`** (`CircuitOpenError` → HTTP 503 payload `{ error: "circuit_open" }`).
-2. After cool-down (`OPOSSUM_RESET_TIMEOUT_MS`), **`halfOpen`** probe runs; successful echo **`close`**s the breaker.
-3. Structured logs (`circuit_breaker`) capture transitions for interviews (`open`, `halfOpen`, `close`, `failure`, `success`).
-
-### Operational runbook (US-026)
-
-`docs/runbook.md` documents triage steps for each demo failure mode (`circuit_open`, `upstream`, `timeout`, `bulkhead_full`), reproduction commands for forced failure / recovery, idempotency replay verification, and the tunable opossum knobs. The reliability harness output now embeds a structured **`breakerTimeline`** field (US-027) with timestamps and `previousState → breakerState` transitions, making OPEN → HALF_OPEN → CLOSED cycles directly auditable from the JSON summary.
+1. Upstream in `mode=fail` or other 5xx responses → the framework retries where applicable → **`UpstreamError`** / **`CircuitOpenError`** depending on `opossum` thresholds → the channel returns **502 / 503 / 504** with a stable body (see mapper).
+2. After **`IF_BREAKER_RESET_TIMEOUT_MS`**, the breaker may transition through **half-open** and **closed** if upstream returns to `mode=ok`; channel JSON logs show the timeline.
+3. **`POST /demo/order`** with the same `Idempotency-Key` returns **200** and `deduped: true` without repeating side effects (in-memory store for demo only).
 
 ### API artifacts
 
@@ -345,7 +361,7 @@ One-page decision-grade narrative covering **two** program-level architecture ch
 
 | Topic | Where reflected |
 | --- | --- |
-| Hybrid integration ownership | Section A.2 (Integration patterns), `packages/integration-framework` (`IntegrationHttpClient`), L3 component diagram |
+| Hybrid integration ownership | Section A.2 (Integration patterns), `packages/integration-framework` (`ResilientHttpClient`), L3 component diagram |
 | Hybrid sync/async | Section A.2 items 7–8 (async + trace), A.1.4 SLO scope for sync segments |
 | Error budgets | Section A.1.4 error budget policy |
 
@@ -355,7 +371,7 @@ One-page decision-grade narrative covering **two** program-level architecture ch
 - [x] C4 diagrams (System Context, Container, Component) committed under `docs/`.
 - [x] Executive overview diagram updated.
 - [x] Diagram explanations published in `docs/c4-diagram-explanations.md` (L1/L2/L3 C4 files; executive overview aligned in `docs/architecture.mmd`).
-- [ ] Section B — integration framework **code** and design notes (**code reset — re-implement `packages/integration-framework`**).
-- [ ] Section C — demo run instructions and failure behavior (**services/harness removed — restore per Spec C**).
+- [x] Section B — integration framework **code** (`packages/integration-framework`) and design notes aligned with the implementation.
+- [x] Section C — demo runbook, DDD layout, and failure behaviour (`src/contexts/*`, `pnpm test:reliability`).
 - [x] Section D — TDR (one page, two decisions).
 - [ ] All evidence logs updated in `docs/evidence/` (`spec`, `planning`, `architecture`, `implementation`, `review`) — **refresh after each implementation milestone**.

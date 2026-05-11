@@ -1,9 +1,125 @@
 {
-  "openapi": "3.0.3",
-  "info": {
-    "title": "Assessment API — pending implementation",
-    "version": "0.0.0",
-    "description": "Regenerate with `pnpm openapi:generate` after restoring Nest apps and the generator script."
+  "openapi": "3.0.0",
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "DemoController_health",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Liveness probe",
+        "tags": [
+          "demo"
+        ]
+      }
+    },
+    "/demo/upstream": {
+      "get": {
+        "operationId": "DemoController_callUpstream",
+        "parameters": [
+          {
+            "name": "seed",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "failRate",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "slowMs",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "latencyMs",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Call flaky upstream through the integration framework",
+        "tags": [
+          "demo"
+        ]
+      }
+    },
+    "/demo/order": {
+      "post": {
+        "operationId": "DemoController_placeOrder",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "productId",
+                  "qty"
+                ],
+                "properties": {
+                  "productId": {
+                    "type": "string"
+                  },
+                  "qty": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Mutation with optional idempotency key (demo Map dedupe)",
+        "tags": [
+          "demo"
+        ]
+      }
+    }
   },
-  "paths": {}
+  "info": {
+    "title": "Assessment — Channel",
+    "description": "Demo channel consuming upstream via @assessment/integration-framework",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "schemas": {}
+  }
 }
