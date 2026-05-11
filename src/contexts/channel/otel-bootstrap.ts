@@ -1,7 +1,7 @@
 import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { FastifyInstrumentation } from "@opentelemetry/instrumentation-fastify";
-import { resourceFromAttributes } from "@opentelemetry/resources";
+import { Resource } from "@opentelemetry/resources";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 
 /** Stable attribute key for the logical service name (Jaeger / backends filter on this). */
@@ -55,7 +55,7 @@ export function startChannelOpenTelemetry(): void {
   const traceExporter = new OTLPTraceExporter({ url: tracesUrl });
 
   const sdk = new NodeSDK({
-    resource: resourceFromAttributes({
+    resource: new Resource({
       [ATTR_SERVICE_NAME]: serviceName,
     }),
     traceExporter,
