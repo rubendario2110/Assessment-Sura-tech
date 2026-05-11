@@ -54,3 +54,42 @@ Use this file as an append-only execution log.
   - Run `/implementation` to start S1 framework stories (US-009, US-010, US-018).
   - Schedule API freeze review at end of S1 (Tech Lead).
   - Refresh estimates if `opossum` integration uncovers wrapper complexity > 4 h.
+
+---
+
+## Entry: 2026-05-11T14:30:00Z
+- Timestamp (UTC): 2026-05-11T14:30:00Z
+- Inputs used:
+  - `docs/assessment-input.md`
+  - `specs/A-architecture.spec.md`
+  - `specs/B-integration-framework.spec.md`
+  - `specs/C-demo-service.spec.md`
+  - `specs/D-tdr.spec.md`
+- Planning assumptions (capacity/velocity/constraints):
+  - Team: 1 Tech Lead + 2 Senior Engineers + 1 SRE (4 FTE); 12-week horizon, 2-week sprints (S1–S6).
+  - Gross focus capacity ~240 h/sprint; sustainable delivery budget ~140–160 h/sprint after overhead.
+  - Velocity target 18–24 SP/sprint; portfolio average ~2.0 h/SP based on summed task hours vs story points.
+  - Quality gates: TypeScript compile, Mermaid render, build-then-run for Nest contexts, reliability script within Spec C time intent.
+  - Repo alignment: `packages/integration-framework`, `src/contexts/channel`, `src/contexts/upstream`, `opossum` mandatory for breaker.
+- Sprint distribution summary (S1..S6):
+  - S1 (W1–2) — 19 SP (~37 h): US-001, US-002, US-005, US-017 — foundations + HA narrative + SLO draft.
+  - S2 (W3–4) — 20 SP (~37 h): US-003, US-004, US-006, US-007 — topology diagrams + pattern catalog + roadmap.
+  - S3 (W5–6) — 21 SP (~50 h): US-008, US-009, US-011 — resilient HTTP core + config/logging + idempotency helper.
+  - S4 (W7–8) — 18 SP (~42 h): US-010, US-012, US-016 — tracing/errors/tests + OTel smoke checklist.
+  - S5 (W9–10) — 19 SP (~34 h): US-013, US-014, US-018 — demo contexts + first TDR.
+  - S6 (W11–12) — 24 SP (~48 h): US-015, US-019, US-020 — reliability automation + second TDR + submission package.
+- Epic count: 6 (E-01..E-06).
+- User story count: 20 (US-001..US-020).
+- Task count: 45 (T-001..T-045).
+- Estimation summary (story points + hours): **121 SP** total · **248 ideal hours** total (per-story task sums documented in `docs/backlog.md`).
+  - Per-epic SP: E-01 18 · E-02 18 · E-03 34 · E-04 29 · E-05 8 · E-06 14.
+  - Per-epic hours: E-01 36 · E-02 34 · E-03 84 · E-04 58 · E-05 12 · E-06 24.
+- Risks/dependency changes:
+  - Rebased backlog IDs vs prior plan (30-story model retired) — canonical IDs now US-001..US-020 / T-001..T-045 only in `docs/backlog.md` + `docs/plan-scrum.md`.
+  - Critical path emphasized: US-008 → US-014 → US-015; API freeze checkpoint end Sprint 3.
+  - Risks unchanged in theme: framework API churn, reliability nondeterminism, local Docker/OTel friction, diagram drift, TDR density — mitigations captured in backlog risk register.
+- Next planning actions:
+  - Groom Sprint 1 stories into sprint backlog tasks in tracker; attach owners.
+  - Schedule architecture/framework parallel tracks per S1 commitment.
+  - After Sprint 3 freeze review, prohibit breaking changes to framework public surface without version bump.
+  - Run `/sprint-status` after Sprint 1 close to refresh `docs/sprint-status.md` burn-down vs this plan.

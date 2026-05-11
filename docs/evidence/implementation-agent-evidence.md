@@ -273,3 +273,68 @@ Use this file as an append-only execution log.
   - (CI) wire `sonar-scanner` step using `coverage/lcov.info` and `sonar-project.properties` to enforce rule 10 fully.
   - (Local) start Docker daemon and run `pnpm demo:up && pnpm test:reliability`, then check Jaeger UI for spans tagged with the channel/upstream service names.
   - Trigger `/specs` to refresh `specs/C-demo-service.spec.md` for the `packages/integration-framework` + `test/unit/**` layout.
+
+---
+
+## Entry: 2026-05-11T21:26:00Z — `/implementation` re-validation (implementation-agent routing-blocked)
+
+- Timestamp (UTC): 2026-05-11T21:26:00Z
+- Routing note: **`implementation-agent` invocation failed (usage limit)** — validation and evidence recorded by the default Cursor agent per user instruction to execute locally.
+- Node.js version used (`node -v`): **v24.11.1** (meets `engines.node` `>=22`; aligns with “latest stable Node.js Current” intent).
+- Active sprint and planned scope: **`docs/sprint-status.md`** still snapshots **S7 closed** (hardening complete). **`docs/plan-scrum.md`** defines **S1–S6 / US-001–US-020** (different ID scheme); no new sprint backlog item was opened for this run — scope was **regression verification + artifact refresh**.
+- Story IDs covered (`US-xxx`): N/A (verification-only pass).
+- Task IDs covered (`T-xxx`): N/A.
+- Sprint completion status (done/blocked): **DONE** for verification commands; **BLOCKED** for live Docker telemetry (daemon unavailable on host).
+- Commands executed:
+  - `node -v`
+  - `pnpm exec tsc --noEmit` — PASS
+  - `pnpm build` (framework + app) — PASS
+  - `pnpm lint` — PASS (0 errors, 0 warnings)
+  - `pnpm test:coverage` — PASS — **124/124** tests, **23** suites; coverage **100%** statements/lines/functions, **97.6%** branches (same profile as S7: decorator/fetch residual branches).
+  - `pnpm test:reliability` — PASS — `breakerTimeline`: `open` (previous `closed`), `halfOpen` (previous `open`), `close` (previous `half_open`); `recoveryHttp=200`; `circuitBreakerLogSample` includes opossum lifecycle.
+  - `pnpm demo:config` — PASS
+  - `pnpm docs:api` (`openapi:generate` + `postman:generate`) — PASS — `docs/api/openapi.json` + `docs/postman/assessment.postman_collection.json` regenerated.
+  - `pnpm demo:up` — **FAIL** — Docker daemon not reachable (`unix:///Users/rubennaranjo/.docker/run/docker.sock`).
+- Validation results summary: build, typecheck, lint, unit coverage suite, reliability harness, compose **config**, API doc generation — **all PASS**. Runtime demo stack — **not started**.
+- OpenAPI artifact (`docs/api/openapi.json`) status: **Regenerated** (`openapi_written` logged by generator).
+- Postman artifact (`docs/postman/assessment.postman_collection.json`) status: **Regenerated** (`openapi-to-postmanv2` success).
+- Opossum / circuit breaker evidence: reliability JSON includes **`breakerEvent`** sequence **`open` → `halfOpen` → `close`** with **`previousState`** chain `closed` → `open` → `half_open` → `closed`.
+- DDD package status (`packages/integration-framework/*`): unchanged this run; builds clean via `pnpm build:framework`.
+- Test folder status (`test/unit`, `test/integration`, `test/e2e`): **`test/unit/**`** exercised by Jest; integration/e2e folders unchanged (empty if still reserved).
+- Docker Compose demo status (`docker-compose.demo.yml`): **definition valid** (`pnpm demo:config`); **`pnpm demo:up` blocked** — start Docker Desktop/daemon and re-run.
+- OTel collector config status (`observability/otel-collector-config.yaml`): unchanged; bind-mount referenced in compose config output.
+- Telemetry demo evidence (app → collector → Jaeger): **NOT OBSERVED** this run (Docker blocked). Mitigation: after `demo:up`, exercise channel/upstream with OTLP exporter env vars per README and query Jaeger UI `:16686`.
+- Coverage status (command rule “100%”): **100%** lines/statements/functions; branches **97.6%** — Jest thresholds remain **branches ≥ 90%** unless e2e added for decorator branches.
+- Duplication / code smells / Sonar: **not executed locally** — CI Sonar + `sonar-project.properties` still the formal gate for **0% duplication / 0 smells**; local proxy: ESLint clean + small codebase.
+- ESLint status: **0 errors, 0 warnings**.
+- Files changed this run: **`docs/evidence/implementation-agent-evidence.md`** (this entry); OpenAPI/Postman **rewritten by generator** (content may be bitwise unchanged vs prior commit).
+- Known limitations / open risks:
+  - **SonarCloud / sonar-scanner** not run in this session — rule 10 not fully proven without CI.
+  - **Strict 100% branch coverage** not met — same rationale as S7 (Nest DI decorators); add `test/e2e` if auditors require 100% branches.
+  - **Align sprint-status.md with `docs/plan-scrum.md` US-001–US-020** remains a documentation hygiene task (out of scope unless `/plan` refresh requests it).
+- Next actions:
+  - Enable Docker locally → `pnpm demo:up` → confirm traces in Jaeger.
+  - Wire CI job: `sonar-scanner` + quality gate wait.
+  - Retry `/implementation` with **`implementation-agent`** when subagent quota available for delegated execution parity.
+
+---
+
+## Entry: 2026-05-11T22:15:00Z — Full implementation reset (from scratch)
+
+- Timestamp (UTC): 2026-05-11T22:15:00Z
+- Trigger: User requested **re-implementation from zero** while keeping specs/plan/architecture docs.
+- Actions taken:
+  - **Removed** `packages/integration-framework/**`, `pnpm-workspace.yaml`, `src/contexts/**`, `src/test/**`, `src/scripts/**`, entire `test/unit/**` tree (replaced with `test/unit/.gitkeep`), `docker-compose.demo.yml`, `observability/**`, `sonar-project.properties`, `docs/runbook.md`, `docs/integration-framework-library-stack.md`.
+  - **Added** `src/placeholder.ts` so `tsc -p tsconfig.build.json` succeeds on an empty slate.
+  - **Rewrote** `package.json` — dropped `workspace:*` dependency; scripts `build`/`test`/`lint` active; demo/reliability/openapi scripts stubbed with `exit 1` + message until restored.
+  - **Rewrote** `jest.config.ts` — `passWithNoTests: true`, removed workspace mapper and coverage thresholds (restore when TDD resumes).
+  - **Stubbed** `docs/api/openapi.json` and `docs/postman/assessment.postman_collection.json`.
+  - **Updated** `docs/assessment.md` (banner), `README.md`, `docs/sprint-status.md` (code reset note).
+- Sprint alignment: **`docs/sprint-status.md`** remains **not finalized**, **S1** active — matches intentional greenfield tracking.
+- Validation after reset (run locally after `pnpm install`):
+  - `pnpm build`, `pnpm lint`, `pnpm test` expected **PASS** on placeholder-only tree.
+  - `pnpm test:reliability`, `pnpm docs:api`, `pnpm demo:config` expected **FAIL / exit 1** until artifacts are reintroduced.
+- Next actions:
+  - Re-create `packages/integration-framework` and restore `pnpm-workspace.yaml` per Spec B.
+  - Add `src/contexts/*`, reliability harness, OpenAPI generator, Docker Compose + OTel config per Spec C.
+  - Reintroduce `sonar-project.properties` if CI Sonar gate is required.

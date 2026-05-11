@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@assessment/integration-framework':
-        specifier: workspace:*
-        version: link:packages/integration-framework
       '@fastify/swagger':
         specifier: ^9.7.0
         version: 9.7.0

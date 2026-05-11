@@ -1,12 +1,14 @@
 # Technical Lead Practical Assessment
 
+> **Implementation status:** Application code was **reset to start from scratch** (workspace placeholder under `src/` only). Sections **A** (architecture, roadmap, diagrams) and **D** (TDRs) remain the intended target narrative. Sections **B** and **C** describe the **expected** framework and demo — re-implement per `specs/*.spec.md`, `docs/backlog.md`, and `docs/plan-scrum.md` (`packages/integration-framework`, `src/contexts/*`, `test/unit/**`, demo Compose stack).
+
 ## Section A — Architecture & Roadmap
 
 ### A.1 — End-to-End Target Architecture
 
 The Multi-Country Digital Direct Channel is an Azure-first, active-active, multi-region platform that lets customers, agents, and partners quote, issue, pay, and manage insurance products across countries. It is structured with Domain-Driven Design (DDD), exposed through an API Gateway + BFFs, served by stateless domain services, and integrated with legacy and partner systems through a single reusable Integration Layer that owns all resilience and observability concerns.
 
-Diagrams (rendered with Mermaid):
+Diagrams (rendered with Mermaid; integration implementation home: **`packages/integration-framework`**):
 - System Context: `docs/c4-system-context.mmd`
 - Container: `docs/c4-container.mmd`
 - Component (Integration Layer): `docs/c4-component-integration-layer.mmd`
@@ -29,18 +31,29 @@ Bounded contexts and classification:
 | Integration | Generic | Reusable resilience pipeline + ACL adapters to legacy/partners. |
 | Observability | Generic | Logging, tracing, metrics; SLO tooling. |
 
-Context map (high level):
+**Domain classification (Core / Supporting / Generic)**
 
-- Customer/Identity is an Open Host (OIDC) consumed by all other contexts.
-- Quoting → Policy: Customer/Supplier; orchestrated via Saga (Issue Policy).
-- Policy → Payments: Customer/Supplier; Outbox pattern publishes `PolicyIssued` to trigger premium charge.
-- Payments → Notifications: Conformist via async events (`PaymentCaptured`, `PaymentFailed`).
-- Catalog → Quoting: Open Host / Published Language; cache-aside on Quoting side.
-- Country/Locale: Conformist cross-cutting; injected as configuration into all contexts.
-- Integration → Core Policy / Core Customer / Payments Gateway / KYC: Anti-Corruption Layer (ACL) per legacy system to keep our model clean.
+- **Core domains** (competitive differentiators): **Quoting**, **Policy**, **Payments** — these encapsulate quote-to-bind, authoritative policy lifecycle, and money movement; they justify bespoke modeling, rigorous aggregates, and the tightest SLO/error-budget scrutiny.
+- **Supporting domains**: **Customer/Identity**, **Notifications**, **Catalog/Reference** — essential capabilities that must be correct and compliant but are not the primary economic differentiator; integrate via stable contracts (OIDC, events, published catalog language).
+- **Generic / cross-cutting subdomains**: **Country/Locale**, **Integration**, **Observability** — reusable capabilities shared across the portfolio; prefer vendor/platform leverage (Azure, Entra, Monitor) and thin domain wrappers.
+
+Context map (high level — relationship, integration style, mechanism):
+
+| Relationship | Upstream → Downstream | Integration style | Mechanism / notes |
+| --- | --- | --- | --- |
+| Identity | Customer/Identity → all contexts | Open Host (OIDC) | JWT validation at APIM/BFF; no embedded IAM in domain cores |
+| Quote → Issue | Quoting → Policy | Customer–Supplier | Orchestrated **Saga** (issue policy); compensations on failure |
+| Issue → Pay | Policy → Payments | Customer–Supplier | **Outbox** publishes `PolicyIssued`; Payments consumes via **Service Bus** |
+| Pay → Notify | Payments → Notifications | Conformist | Async domain events (`PaymentCaptured`, `PaymentFailed`) |
+| Catalog → Quote | Catalog/Reference → Quoting | Open Host / Published Language | Versioned catalog API + **cache-aside** on Quoting reads |
+| Locale | Country/Locale → all | Conformist (cross-cutting) | **Azure App Configuration** + typed locale profile injected per request |
+| Legacy / partners | Integration → cores / gateways / KYC | ACL | **Anti-Corruption Layer** per system; sync HTTP via Integration Layer policies |
 
 Aggregates (high level):
 - Quote (Quoting), Policy (Policy), Payment (Payments), Customer (Customer/Identity), Notification (Notifications), CatalogItem (Catalog/Reference), CountryProfile (Country/Locale).
+
+Domain services (high level):
+- **Quoting**, **Policy**, and **Payments** application services coordinate their aggregates and publish/consume domain events; **Notifications** worker consumes async commands/events; **Catalog/Reference** serves published language queries with optional CQRS projections; **Country/Locale** exposes configuration-backed locale routing; the **Integration** context supplies **domain-agnostic outbound orchestration** (`packages/integration-framework`) and **ACL adapters** per external system.
 
 Domain events (high level):
 - `QuoteAccepted`, `PolicyIssued`, `PolicyAmended`, `PaymentRequested`, `PaymentCaptured`, `PaymentFailed`, `NotificationDispatched`, `CustomerRegistered`.
@@ -66,7 +79,14 @@ Domain events (high level):
 
 - **Availability**: 99.95% target for critical journeys (quote, issue, pay). Active-active multi-region; health probes drive failover.
 - **Scalability**: Stateless services scaled by HTTP/queue depth; KEDA autoscaling for workers; Cosmos DB and Service Bus scale independently.
-- **Resilience**: Every outbound call goes through the reusable Integration Layer (timeouts, retries with backoff + jitter, circuit breaker via `opossum`, bulkheads, idempotency, optional cache-aside). Async messaging absorbs spikes and shields the channel from slow upstreams.
+- **Resilience controls (explicit)** — enforced by **`packages/integration-framework`** on synchronous outbound HTTP and complemented by messaging for slow/non-critical work:
+  - **Timeouts**: Per-call `AbortController` deadlines (no unbounded waits); aligned with APIM/BFF budgets.
+  - **Retries**: Bounded attempts with **exponential backoff + full jitter** and retry-budget guards; only retryable failures (network, 5xx, 408, 429).
+  - **Circuit breaker**: `opossum` per dependency (OPEN / HALF_OPEN / CLOSED); fast-fail while OPEN to shed load.
+  - **Idempotency**: Mutation calls carry `Idempotency-Key`; dedupe backed by **Redis** for at-most-once side effects across retries.
+  - **Bulkheads**: Per-dependency concurrency caps so one sick upstream cannot exhaust thread pools.
+  - **Async messaging**: **Azure Service Bus** / **Event Grid** for notifications, post-commit propagation, and load smoothing; **Outbox** where transactional consistency with Azure SQL is required.
+  - **Caching**: **Cache-aside** (Redis + optional Cosmos read models) for hot catalog/country reference reads with TTL + jitter and stampede protection.
 - **Observability**: Structured JSON logs, RED/USE metrics, end-to-end traces via W3C `traceparent`. SLOs are defined per critical journey; error budgets drive release decisions (**catalog:** Section A.1.4).
 - **Disaster Recovery**: RTO ≤ 30 min, RPO ≤ 5 min for critical data. Periodic DR drills; runbooks per failure mode.
 - **Security & compliance**: TLS in transit, encryption at rest, secret rotation in Key Vault, per-country data residency by region pinning, Azure Policy guardrails.
@@ -113,7 +133,9 @@ This catalog is consistent with the observability path in Section A.1.2 (`OpenTe
 
 ### A.2 — Integration Patterns
 
-All integrations are realized through the Integration Layer, which exposes a single client SDK to domain services and applies the following controls in a deterministic composition order:
+All integrations are realized through the Integration Layer. The **canonical reusable implementation** is the TypeScript package under **`packages/integration-framework`** (workspace package `@assessment/integration-framework` per Spec B), consumed by domain services as a **Hexagonal port/adapter–friendly** client (`IntegrationHttpClient` and helpers). Section B/C may reference demo paths for historical layout; **architecture, governance, and diagrams treat `packages/integration-framework` as the integration-home**.
+
+The Integration Layer exposes a single client SDK contract to domain services and applies the following controls in a deterministic composition order:
 
 1. **Idempotency**: Mutation calls accept/propagate `Idempotency-Key`; Redis-backed dedupe store ensures at-most-once side effects across retries.
 2. **Bulkhead**: Per-dependency concurrency cap (semaphore) prevents one slow upstream from exhausting the channel.
@@ -158,7 +180,7 @@ Three workstreams executed in parallel; quality gates at the end of each fortnig
 | 5 | Active-active routing PoC at Front Door | Circuit breaker (opossum) wrapper + events | CB transitions visible in dashboards |
 | 6 | Bulkhead defaults per dependency tier | Idempotency support (Redis-backed) | RED metrics per service + alerting baseline |
 | 7 | Failover drill (region A→B) | Cache-aside for Catalog/Reference | SLOs published for top-3 critical journeys |
-| 8 | Chaos in non-prod (latency, 5xx, partial) | Async outbox PoC for Policy events | Error-budget burn alerts wired |
+| 8 | Chaos in non-prod (latency, 5xx, partial) | Async outbox PoC for Policy events → Azure Service Bus | Error-budget burn alerts wired |
 | 9 | Capacity plan + load test of critical journeys | Strangler PoC for one legacy capability | On-call rotation + paging policy live |
 | 10 | DR drill end-to-end with measured RTO/RPO | ACL adapters formalized; partner mTLS hardening | Runbooks per failure mode published |
 | 11 | Game day: sustained outage scenario | Per-country config rollout via App Configuration | Post-mortem template + blameless review process |
@@ -183,7 +205,7 @@ Workstream exit criteria:
 
 ### Implementation outline
 
-The reusable integration layer ships under `src/framework/` as a Nest-friendly `@Injectable()` **`IntegrationHttpClient`** (`http-client.ts`). Outbound calls execute with fixed composition: **bulkhead (async semaphore) → `opossum` circuit breaker → bounded retries with exponential backoff + jitter → `fetch` + `AbortSignal` timeout**.
+The reusable integration layer ships as the workspace package **`packages/integration-framework`** (import alias **`@assessment/integration-framework`**). Domain services obtain a Nest-friendly **`IntegrationHttpClient`** from `packages/integration-framework/src/http-client.ts`, typically via a small infrastructure provider that calls `loadIntegrationConfig`, `createLogger`, and `new IntegrationHttpClient(...)`. Outbound calls execute with fixed composition: **bulkhead (async semaphore) → `opossum` circuit breaker → bounded retries with exponential backoff + jitter → `fetch` + `AbortSignal` timeout**.
 
 ### Design decisions
 
@@ -217,9 +239,9 @@ Bootstrapping with `tsx` **drops `emitDecoratorMetadata`**, so Nest (and `@nestj
 
 Specs run on **Jest** (`ts-jest/presets/default-esm` + `--experimental-vm-modules`), aligned with the official NestJS preset:
 
-- `src/framework/*.spec.ts` — config parsing, typed errors, mocked `fetch` contract for `IntegrationHttpClient`.
-- `src/contexts/upstream/application/commands/echo.handler.spec.ts` — CQRS handler validated end-to-end with `@nestjs/testing` (idempotent replay, flaky failure mode).
-- `src/contexts/channel/application/commands/invoke-upstream.handler.spec.ts` — CQRS handler validates success path and translates `CircuitOpenError` into `ChannelHttpException(503)`.
+- `test/unit/packages/integration-framework/*.spec.ts` — config, tracing, retry/bulkhead/CB, typed errors, mocked `fetch` contract for `IntegrationHttpClient`.
+- `test/unit/contexts/upstream/application/commands/echo.handler.spec.ts` — CQRS handler validated end-to-end with `@nestjs/testing` (idempotent replay, flaky failure mode).
+- `test/unit/contexts/channel/application/commands/invoke-upstream.handler.spec.ts` — CQRS handler validates success path and translates `CircuitOpenError` into `ChannelHttpException(503)`.
 
 ---
 
@@ -232,8 +254,8 @@ Both bounded contexts follow the same shape: `domain/` (value objects, events, p
 | Path | Role |
 | --- | --- |
 | `src/contexts/upstream/` | Flaky upstream BC — `EchoCommand`, `UpdateFailureRateCommand`, `GetUpstreamStatusQuery`; in-memory `IdempotencyStore` + `FailureRateRepository` |
-| `src/contexts/channel/` | Outbound BC — `InvokeUpstreamCommand`, `GetIntegrationStatusQuery`, value objects `IdempotencyKey` / `ChannelTraceContext`, domain events `UpstreamCallSucceededEvent` / `UpstreamCallRejectedEvent` |
-| `src/framework/` | Reusable `IntegrationHttpClient` (`opossum` + bulkhead + retry + timeout + traceparent) injected by the Channel application layer |
+| `src/contexts/channel/` | Outbound BC — `InvokeUpstreamCommand`, `GetIntegrationStatusQuery`, value objects `IdempotencyKey` / `ChannelTraceContext`, domain events `UpstreamCallSucceededEvent` / `UpstreamCallRejectedEvent`; wires **`@assessment/integration-framework`** via `integration-http-client.provider.ts` |
+| `packages/integration-framework/` | Shared library — `IntegrationHttpClient` (`opossum` + bulkhead + retry + timeout + `traceparent`), config/logger/errors/idempotency helpers; consumed by Channel (and any other service) as the single outbound integration surface |
 | `src/test/reliability-test.ts` | Spawns compiled `dist/contexts/*/main.js`, drives failure → open circuit → recovery |
 
 Upstream exposes `GET /upstream/simulate/config?failureRate=` (handled via `UpdateFailureRateCommand`) for runtime tuning (default seeded by `UPSTREAM_FAILURE_RATE`).
@@ -323,7 +345,7 @@ One-page decision-grade narrative covering **two** program-level architecture ch
 
 | Topic | Where reflected |
 | --- | --- |
-| Hybrid integration ownership | Section A.2 (Integration patterns), Section B (`IntegrationHttpClient`), L3 component diagram |
+| Hybrid integration ownership | Section A.2 (Integration patterns), `packages/integration-framework` (`IntegrationHttpClient`), L3 component diagram |
 | Hybrid sync/async | Section A.2 items 7–8 (async + trace), A.1.4 SLO scope for sync segments |
 | Error budgets | Section A.1.4 error budget policy |
 
@@ -332,8 +354,8 @@ One-page decision-grade narrative covering **two** program-level architecture ch
 - [x] Section A architecture, DDD framing, and 12-week roadmap completed.
 - [x] C4 diagrams (System Context, Container, Component) committed under `docs/`.
 - [x] Executive overview diagram updated.
-- [x] Diagram explanations published in `docs/c4-diagram-explanations.md`.
-- [x] Section B — integration framework code and design notes.
-- [x] Section C — demo run instructions and failure behavior.
+- [x] Diagram explanations published in `docs/c4-diagram-explanations.md` (L1/L2/L3 C4 files; executive overview aligned in `docs/architecture.mmd`).
+- [ ] Section B — integration framework **code** and design notes (**code reset — re-implement `packages/integration-framework`**).
+- [ ] Section C — demo run instructions and failure behavior (**services/harness removed — restore per Spec C**).
 - [x] Section D — TDR (one page, two decisions).
-- [x] All evidence logs updated in `docs/evidence/` (`spec`, `planning`, `architecture`, `implementation`, `review`).
+- [ ] All evidence logs updated in `docs/evidence/` (`spec`, `planning`, `architecture`, `implementation`, `review`) — **refresh after each implementation milestone**.

@@ -22,13 +22,13 @@ flowchart TB
         direction TB
 
         subgraph API["Inbound API (Hexagonal port)"]
-            sdk["Framework Client SDK<br/><i>src/framework/index.ts</i><br/>Public API: client.execute(req, opts)"]:::component
+            sdk["Framework Client SDK<br/><i>packages/integration-framework/src/index.ts</i><br/>Public API: IntegrationHttpClient"]:::component
             errors["Typed Error Model<br/><i>TimeoutError · CircuitOpenError · UpstreamError · ValidationError</i>"]:::component
         end
 
         subgraph CORE["Resilience Pipeline (composition order)"]
             direction LR
-            cfg["Centralized Config<br/><i>src/framework/config.ts</i><br/>env-driven, fail-fast"]:::component
+            cfg["Centralized Config<br/><i>packages/integration-framework/src/config.ts</i><br/>env + App Configuration"]:::component
             idemp["Idempotency<br/><i>key gen + header propagation</i>"]:::policy
             bulk["Bulkhead<br/><i>per-dependency semaphore</i>"]:::policy
             cb["Circuit Breaker (opossum)<br/><i>OPEN/HALF_OPEN/CLOSED</i>"]:::policy

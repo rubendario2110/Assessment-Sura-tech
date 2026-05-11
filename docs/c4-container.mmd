@@ -59,7 +59,8 @@ flowchart TB
         coreP[("Core Policy / Underwriting")]:::external
         coreC[("Core Customer / CRM")]:::external
         payGw[("Payments Gateway")]:::external
-        idp[("Microsoft Entra External ID")]:::external
+        idpB2c[("Microsoft Entra External ID<br/><i>customers</i>")]:::external
+        idpEntra[("Microsoft Entra ID<br/><i>staff / partner apps</i>")]:::external
         notifSvc[("Email / SMS / Push providers")]:::external
         catSrc[("Product Catalog / Rates source")]:::external
         fraud[("Fraud / KYC")]:::external
@@ -107,7 +108,8 @@ flowchart TB
     intgA -- "sync, ACL" --> coreP
     intgA -- "sync + events" --> coreC
     intgA -- "sync + webhook, idempotent" --> payGw
-    intgA -- "OIDC" --> idp
+    intgA -- "OIDC (customer)" --> idpB2c
+    intgA -- "OIDC (workforce)" --> idpEntra
     intgA -- "notifications" --> notifSvc
     intgA -- "cache-aside reads" --> catSrc
     intgA -- "KYC checks" --> fraud

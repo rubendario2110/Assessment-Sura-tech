@@ -134,3 +134,35 @@ Use this file as an append-only execution log.
   - Baseline SLI measurements from production-like environments (not yet available in assessment scope).
   - Whether to add a fourth journey (e.g., endorse/amend) as catalog maturity increases.
 
+---
+
+## Entry: 2026-05-11T12:00:00Z
+- Timestamp (UTC): 2026-05-11T12:00:00Z
+- DDD decisions made:
+  - Added explicit **Core / Supporting / Generic** domain classification prose under Section A.1.1 (complements the bounded-context table).
+  - Replaced bullet-only context map with a **tabular context map** (upstream/downstream, integration style, mechanism) covering Open Host (OIDC), Customer–Supplier + Saga, Outbox + Service Bus, Conformist async events, Published Language + cache-aside, cross-cutting Country/Locale via App Configuration, and ACL for legacy/partners.
+  - Documented **domain services at high level** (Quoting/Policy/Payments orchestration, Notifications worker, Catalog CQRS, Country/Locale facade, Integration orchestration + ACLs).
+- C4 artifacts created/updated:
+  - **`docs/c4-system-context.mmd`**: split identity externals into **Microsoft Entra External ID (B2C)** vs **Microsoft Entra ID** (workforce/partners); integration commentary now references **`packages/integration-framework`**.
+  - **`docs/c4-container.mmd`**: dual IdP nodes and dual OIDC edges from Integration Layer; aligns with Section A.1.2 identity baseline.
+  - **`docs/c4-component-integration-layer.mmd`**: SDK/config annotations updated from legacy `src/framework/*` to **`packages/integration-framework/src/*`**; public API labeled **`IntegrationHttpClient`**.
+  - **`docs/architecture.mmd`**: Integration subgraph cites **`packages/integration-framework`**; externals show **Entra External ID** + **Entra ID** (staff/partners).
+- Explanation artifacts created/updated:
+  - **`docs/c4-diagram-explanations.md`**: rewritten for **strict one-to-one** sections with the three C4 `.mmd` files (Purpose · Scope · Key elements · Flows · Resilience/Ops · Decisions/Tradeoffs each); dual-identity and resilience keywords (**timeouts, retries+jitter, CB, idempotency, bulkheads, async messaging, caching**) threaded through L1/L2/L3; executive overview deferred to narrative/`architecture.mmd` with sync rules in “Stay In Sync”.
+- Azure services selected and rationale:
+  - No new SKU; reaffirmed **Front Door + WAF, APIM, Container Apps/AKS, Service Bus, Event Grid, Azure SQL, Cosmos DB, Redis, App Configuration, Key Vault, Entra External ID + Entra ID, Monitor/App Insights/Log Analytics** as the Azure-first baseline. Dual Entra reflects customer vs workforce/partner authentication paths called out in Section A.
+- Architecture patterns applied and rationale:
+  - Same hybrid platform pattern (Section D.1), **Outbox + messaging**, **Saga**, **ACL**, **cache-aside**, **hexagonal integration port** via **`packages/integration-framework`**; explanations explicitly tie **async messaging** to spike absorption and **Redis** to idempotency/cache-aside.
+- Tradeoffs and rationale:
+  - **Dual IdP** in diagrams increases visual complexity but matches real Azure deployments (B2C vs Entra ID) and avoids overstating a single identity silo.
+  - **Three explanation sections only**: reduces duplication with `architecture.mmd` but requires disciplined cross-edits when the executive overview changes (documented in “Stay In Sync”).
+  - **Section B/C** still describe demo layout paths (`src/framework/` legacy wording): Section A now explicitly crowns **`packages/integration-framework`** as the architecture canonical path to reduce ambiguity without rewriting the whole submission in this pass.
+- Risks and mitigations:
+  - **R9 Documentation vs demo drift** (Section B/C vs Spec B package path). Mitigation: Section A.2 canonical pointer + checklist note; future consolidation of Section B paths to `packages/integration-framework` if Product asks for single-source prose.
+  - **R10 Redis idempotency availability**. Mitigation: regional Redis with CB/timeouts around the store; Saga/outbox ensures messaging durability independent of cache hits.
+- Open questions:
+  - Whether partner-facing OIDC should always route via Entra ID vs federated CIAM (country-specific IdPs).
+  - Final PCI segmentation boundaries affecting Key Vault HSM vs standard vault tiers.
+
+**Next actions:** Keep Section B implementation narrative aligned with Spec B (`packages/integration-framework`) in a future editorial pass; validate Mermaid renders in the assessment viewer after identity node rename.
+

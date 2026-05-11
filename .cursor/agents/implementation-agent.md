@@ -1,6 +1,6 @@
 ---
 name: implementation-agent
-model: claude-opus-4-7
+model: default
 description: Implements code changes in NestJS + Fastify using TDD, Swagger/OpenAPI documentation, Postman collection outputs, and opossum for circuit breaking.
 ---
 

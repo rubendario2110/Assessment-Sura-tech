@@ -1,7 +1,7 @@
 # Spec B: Reusable Integration Framework
 
 ## Goal
-Implement a reusable integration component (TypeScript, NestJS + Fastify stack) that standardizes outbound service calls with resilience, observability, and consistency controls. The framework must be reusable across services and decoupled from business logic.
+Implement a reusable integration component or module (assessment Section B; TypeScript, **NestJS + Fastify**) that standardizes outbound calls with **timeouts**; **retries with exponential backoff and jitter**; **circuit breaker**; **centralized configuration**; **unified logging**; **trace propagation** (OpenTelemetry-compatible / W3C `traceparent`); and **idempotency-key support**. The framework must be reusable across services and decoupled from business logic (DDD package under `packages/integration-framework`).
 
 ## Scope
 - HTTP client abstraction with pluggable transport.
@@ -11,13 +11,14 @@ Implement a reusable integration component (TypeScript, NestJS + Fastify stack) 
 - Bulkhead/concurrency limit per dependency (configurable).
 - Centralized configuration loaded from environment variables.
 - Unified structured logging in JSON (consistent fields: timestamp, level, service, traceId, spanId, dependency, attempt, outcome, latencyMs).
-- Trace propagation via W3C `traceparent` headers (OpenTelemetry-compatible approach).
+- Trace propagation via W3C `traceparent` headers (subset compatible with OpenTelemetry trace context; see existing `packages/integration-framework/src/tracing.ts` conventions).
 - Idempotency-key support for mutation operations (header pass-through and helper to generate keys).
 - Clear typed error model (TimeoutError, CircuitOpenError, UpstreamError, ValidationError, etc.).
 - OpenTelemetry export compatibility for demo mode (OTLP endpoint configuration via env vars).
 
 ## Non-Functional Requirements
-- Reusable: distributed as a dedicated DDD package under `packages/integration-framework`, importable by any service.
+- Azure-first alignment: configuration and observability paths should remain compatible with **Azure Monitor / Application Insights** ingestion via OTel (OTLP or vendor exporters as configured), without coupling business code to a single exporter implementation.
+- Reusable: distributed as a dedicated DDD package under `packages/integration-framework`, importable by any service (`@assessment/integration-framework`).
 - Decoupled: zero business-domain knowledge; business semantics belong to callers.
 - Configurable: all knobs (timeout, retries, backoff, circuit thresholds, concurrency) tunable via env vars without code changes.
 - Observable: every outbound call emits structured logs and is traceable end-to-end.
@@ -40,8 +41,9 @@ Implement a reusable integration component (TypeScript, NestJS + Fastify stack) 
 
 ## Output Files / Evidence Expected
 - `packages/integration-framework/src/**/*.ts` (client, retry, circuit breaker wrapper, logger, tracing, idempotency, config, errors)
-- `docs/assessment.md` (Section B: design decisions and code walkthrough)
+- `docs/assessment.md` (Section B: **design decisions**, tradeoffs, and how each assessment requirement is satisfied — code or pseudocode as submitted)
 - `docs/evidence/implementation-agent-evidence.md` (implementation decisions log)
+- Unit tests under `test/unit/**` mirroring framework modules (per repo quality gate)
 
 ## Open Questions and Assumptions
 - Assumption: Stack is `pnpm` + NestJS + Fastify; circuit breaker uses `opossum` (per repo standard).

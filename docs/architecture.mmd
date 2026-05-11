@@ -20,7 +20,7 @@ flowchart LR
         domain["Domain Services<br/><i>Quoting · Policy · Payments · Notifications · Catalog · Country</i>"]:::channel
     end
 
-    subgraph INTEG["Reusable Integration Layer"]
+    subgraph INTEG["Reusable Integration Layer<br/><i>packages/integration-framework</i>"]
         framework["Resilience Pipeline<br/><b>timeout · retry+jitter · CB (opossum) · bulkhead · idempotency · cache · async · OTel</b>"]:::integ
         acl["Anti-Corruption Layer<br/><i>per legacy / partner adapters</i>"]:::integ
     end
@@ -42,7 +42,8 @@ flowchart LR
         coreP[("Core Policy")]:::ext
         coreC[("Core Customer / CRM")]:::ext
         pay[("Payments Gateway")]:::ext
-        idp[("Microsoft Entra External ID")]:::ext
+        idpB2c[("Entra External ID<br/><i>customers</i>")]:::ext
+        idpWrk[("Microsoft Entra ID<br/><i>staff / partners</i>")]:::ext
         notif[("Email / SMS / Push providers")]:::ext
         cat[("Product Catalog / Rates")]:::ext
         kyc[("Fraud / KYC")]:::ext
@@ -67,7 +68,8 @@ flowchart LR
     acl --> coreP
     acl --> coreC
     acl --> pay
-    acl --> idp
+    acl --> idpB2c
+    acl --> idpWrk
     acl --> notif
     acl --> cat
     acl --> kyc

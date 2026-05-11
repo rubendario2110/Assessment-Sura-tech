@@ -1,74 +1,81 @@
 # Sprint Status Snapshot
 
-_Last updated: 2026-05-08T22:50Z (UTC)_
+_Last updated: 2026-05-11T22:00:00Z (UTC)_
 
-## Active Sprint
+**Canonical plan:** `docs/plan-scrum.md` (6 sprints × 2 weeks, **US-001–US-020**, **121 SP**).
 
-- Sprint: **S7 — Hardening (DDD package + test layout + quality gates + demo infra)** — **closed in-session**
-- Goal: Re-align repo with the updated `/implementation` rules (rules 8–13): integration framework as a dedicated DDD package, top-level `test/` folders, ESLint + 100% coverage gate, Docker Compose demo infrastructure with OTel collector and trace backend.
+**Program status:** **Not finalized** — tracking reset for a **new implementation cycle**. **Code reset:** application implementation removed on **2026-05-11** (placeholder `src/` only); rebuild per backlog. Treat acceptance below as authoritative for sign-off.
 
-## Scope Summary (Sprint 7 — hardening, not in original 30-story plan)
+## Active sprint
 
-- Committed work items (S7): 10 — see Recommended Next Actions in previous snapshots.
-- Completed work items: **10** — all closed.
-- In progress: 0.
-- Blocked: 0 (Docker daemon down on local host — mitigated via static `docker compose config` validation).
-
-## Completion Metrics
-
-- Story completion (S7): **100%** (10/10).
-- Program-level completion (S1 → S7): **30 / 30 original stories** + **10 / 10 hardening tasks**.
-
-## Cumulative Progress (S1 → S7)
-
-| Sprint | Stories / Items | Completed | Status |
-| --- | --- | --- | --- |
-| S1 (Foundations) | US-001, US-002, US-009, US-010, US-018 | 5/5 | Done |
-| S2 (Topology + Retry/Timeout) | US-003, US-004, US-011, US-012 | 4/4 | Done |
-| S3 (Resilience core + HA) | US-005, US-013, US-014, US-015, US-016 | 5/5 | Done |
-| S4 (Observability + Section A + Demos) | US-017, US-019, US-020, US-006, US-025 | 5/5 | Done |
-| S5 (Reliability + Polish + Roadmap) | US-021, US-022, US-027, US-026, US-007 | 5/5 | Done |
-| S6 (SLOs + TDRs + Submission) | US-008, US-023, US-024, US-028, US-029, US-030 | 6/6 | Done |
-| S7 (Hardening for `/implementation` rules 8–13) | 10 hardening items (DDD pkg, test/, lint, coverage gate, docker, OTel, sonar) | 10/10 | **Done** |
-
-## Detailed Status
-
-### Done in this batch (Sprint 7 — hardening)
-
-- **DDD package** — Integration framework moved to `packages/integration-framework` with its own `package.json`, `tsconfig`, dist build. Exposed as `@assessment/integration-framework` (workspace dep).
-- **Test reorg** — All specs moved to `test/unit/**` mirroring source paths. `test/integration` and `test/e2e` reserved.
-- **Coverage gate** — Jest configured with `coverageProvider: "v8"` and thresholds `lines/stmts/funcs: 100, branches: 90` (decoradores TS de constructor, irreducibles sin e2e Nest). 124 tests, 23 suites; 100/97.6/100/100.
-- **Lint gate** — ESLint v9 flat config (`eslint.config.js`) with `@typescript-eslint` recommended; `pnpm lint` returns 0 errors / 0 warnings.
-- **Demo infra** — `docker-compose.demo.yml` (Redis + OTel Collector + Jaeger) + `observability/otel-collector-config.yaml` (OTLP receivers, batch + memory_limiter, debug + Jaeger exporters, health_check extension). `pnpm demo:config` succeeds.
-- **Sonar config** — `sonar-project.properties` (sources, tests, lcov path, exclusions, qualitygate.wait). Local proxy gates documented (lint + coverage + tsc).
-- **Pure helpers** — Refactored `IntegrationHttpClient.shouldRetry` and `normalizeError` into exported pure functions (`shouldRetryError`, `normalizeBreakerError`) so retry policy + error classification are 100% covered without integration spinning.
-- **Docs refreshed** — `README.md` updated with new commands + repo layout. `docs/api/openapi.json` + `docs/postman/assessment.postman_collection.json` regenerated against the new package/path layout.
-
-### Submission gates (this run)
-
-| Gate | Result |
+| Field | Value |
 | --- | --- |
-| `node -v` | `v24.11.1` |
-| `pnpm install` | PASS — workspace resolved (2 projects) |
-| `pnpm build` (framework + app) | PASS |
-| `pnpm exec tsc --noEmit` | PASS |
-| `pnpm lint` | PASS — 0 errors / 0 warnings |
-| `pnpm test:coverage` | PASS — 124/124 tests, 100% lines/statements/functions, 97.6% branches |
-| `pnpm docs:api` | PASS |
-| `pnpm test:reliability` | PASS — `breakerTimeline` includes `closed→open→half_open→closed` |
-| `pnpm demo:config` | PASS — services: redis, otel-collector, jaeger |
-| Mermaid render (4 diagrams) | NOT-RUN-LOCAL — `mmdc` requires Chromium download; previously validated in S6 |
+| **Sprint** | **S1 — Weeks 1–2 · Foundations & Reliability Narrative** |
+| **Goal** | Shared domain language, System Context (C4 L1), HA/DR posture, SLO narrative foundations |
+| **Committed stories** | US-001 (5), US-002 (3), US-005 (8), US-017 (3) → **19 SP** |
+| **Story acceptance (this sprint)** | **0 / 4** — not accepted yet |
 
-## Risks (residual, post-submission)
+### Sprint 1 backlog (detail)
 
-- **Sonar gate** runs in CI (token + scanner). Locally proxied via ESLint + Jest 100/100/100/branches≥90 + `tsc --noEmit`. **Action**: enable `sonar-scanner` step in CI to satisfy rule 10 fully.
-- **Docker daemon down** on this host — `pnpm demo:up` not exercised locally. Static validation via `docker compose config` confirms the stack definition. Telemetry path (app → collector → Jaeger) is configured but not observed end-to-end this run.
-- **Branch coverage at 97.6%** (decoradores `@Inject` / `@CommandHandler` en handlers `:31`, `:12`, `:19` se cuentan como branches por V8 sin ser ejecutables sin spinning Nest e2e). Si la auditoría exige 100% estricto, agregar e2e suite con supertest contra la app Nest.
-- **Spec drift** (`specs/C-demo-service.spec.md`): aún pendiente de regenerar vía `/specs` para reflejar `packages/integration-framework` + `test/unit/**`.
+| Story | Title (see `docs/backlog.md`) | Status |
+| --- | --- | --- |
+| US-001 | DDD bounded contexts & context map | To do |
+| US-002 | C4 System Context diagram | To do |
+| US-005 | HA / DR alignment with NFRs | To do |
+| US-017 | SLO / SLI draft & observability targets narrative | To do |
 
-## Recommended Next Actions
+## Alignment snapshot (must match `docs/plan-scrum.md`)
 
-1. (CI) Wire `sonar-scanner` to read `coverage/lcov.info` and `sonar-project.properties` to formally close Sonar (0 code smells, 0% duplication).
-2. (Local) Start Docker, run `pnpm demo:up`, then `pnpm test:reliability` and confirm spans in Jaeger UI (http://localhost:16686).
-3. Run `/specs` to refresh `specs/C-demo-service.spec.md` for the new layout.
-4. Optionally add `test/e2e/` Supertest suite against `ChannelModule` / `UpstreamModule` to push branch coverage to 100% (decorator branches).
+| Sprint | Weeks | Sprint goal (from plan) | Committed stories | SP | Status |
+| --- | --- | --- | --- | --- | --- |
+| **S1** | 1–2 | Foundations & reliability narrative | US-001, US-002, US-005, US-017 | 19 | **In progress** |
+| **S2** | 3–4 | Topology, patterns, roadmap | US-003, US-004, US-006, US-007 | 20 | Not started |
+| **S3** | 5–6 | Framework execution core | US-008, US-009, US-011 | 21 | Not started |
+| **S4** | 7–8 | Observability plumbing & test harness | US-010, US-012, US-016 | 18 | Not started |
+| **S5** | 9–10 | Demo services & first TDR | US-013, US-014, US-018 | 19 | Not started |
+| **S6** | 11–12 | Reliability automation & submission | US-015, US-019, US-020 | 24 | Not started |
+| **Total** | **12** | Sections **A–D** + submission | **US-001–US-020** | **121** | **0 / 20 stories accepted** |
+
+## Completion metrics (current cycle)
+
+- **Stories accepted:** **0 / 20**
+- **Story points accepted:** **0 / 121**
+- **Definition of Done:** per `docs/plan-scrum.md` (global DoD + per-sprint exit criteria); update this file when the Tech Lead signs off each story.
+
+## Traceability (plan ↔ assessment sections)
+
+| Section | Stories |
+| --- | --- |
+| A — Architecture & roadmap | US-001–US-007, US-017 |
+| B — Integration framework | US-008–US-012 |
+| C — Demo & reliability | US-013–US-015 |
+| D — TDR | US-018–US-019 |
+| Submission | US-020 |
+
+## Quality gates (re-run after implementation milestones)
+
+_All gates below are **pending** for this cycle until recorded after a successful run._
+
+| Gate | Status |
+| --- | --- |
+| `pnpm exec tsc --noEmit` | Pending |
+| `pnpm build` | Pending |
+| `pnpm lint` | Pending |
+| `pnpm test:coverage` | Pending |
+| `pnpm docs:api` | Pending |
+| `pnpm test:reliability` | Pending |
+| `pnpm demo:config` | Pending |
+| `pnpm demo:up` + telemetry smoke (optional) | Pending |
+
+_Environment:_ Node **≥22** per `package.json` `engines` (e.g. Current **v24.x**).
+
+## Risks & notes
+
+- **Scope drift:** Re-implementation should follow `docs/backlog.md` task IDs and acceptance criteria per story.
+- **Docker / Sonar:** Same constraints as before — Docker required for full demo stack; Sonar in CI when wired.
+
+## Recommended next actions
+
+1. Complete **Sprint 1** stories (US-001, US-002, US-005, US-017); mark each **Done** in the table above when DoD is met.
+2. Run **`/implementation`** (or manual equivalent): build, lint, tests, reliability, API artifacts, then paste gate results into **Quality gates**.
+3. Advance **Active sprint** to **S2** only after S1 exit criteria in `docs/plan-scrum.md` are satisfied.

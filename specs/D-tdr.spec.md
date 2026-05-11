@@ -6,10 +6,19 @@ Produce a one-page Technical Decision Record (TDR) covering two architectural de
 2. Event-driven vs synchronous request/response architecture for critical flows.
 
 ## Scope
-- Single one-page document (rendered as Section D of `docs/assessment.md`).
-- Each decision uses the structure: Context, Options Considered, Decision, Consequences.
-- Captures evaluation dimensions and explicit tradeoffs, not just a verdict.
-- Aligned with the target architecture (Spec A) and the integration framework (Spec B).
+- Single **one-page** Technical Decision Record (assessment Section D), rendered as Section D of `docs/assessment.md`.
+- Covers exactly two comparisons:
+  1. **Centralized integration platform** vs **decentralized team-owned integrations**.
+  2. **Event-driven** vs **synchronous request-response** for **critical flows**.
+- Each decision uses the structure: **Context**, **Options Considered**, **Decision**, **Consequences**.
+- Captures evaluation dimensions and explicit tradeoffs, not only the chosen option.
+- Aligned with the target architecture (Spec A), Azure-first constraints, and the integration framework (Spec B).
+
+## Non-Functional Requirements
+- Length and density: **one printed page** (or equivalent) — concise, decision-grade, suitable for leadership review.
+- Language: **English** only (matches assessment submission rules).
+- Traceability: recommendations must remain consistent with Spec A (multi-country Digital Direct Channel) and Spec B (standardized resilience + observability).
+- Auditability: consequences must state **positive and negative** outcomes and practical mitigations (no hand-waving).
 
 ## Evaluation Dimensions
 - Team autonomy vs standardization.

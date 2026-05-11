@@ -22,7 +22,8 @@ flowchart LR
     coreP[("Core Policy / Underwriting<br/><i>legacy mainframe / packaged core</i>")]:::extSystem
     coreC[("Core Customer / CRM")]:::extSystem
     payGw[("Payments Gateway<br/><i>per country</i>")]:::extSystem
-    idp[("Identity Provider<br/><i>Microsoft Entra External ID (B2C)</i>")]:::extSystem
+    idpCust[("Customer Identity<br/><i>Microsoft Entra External ID (B2C)</i>")]:::extSystem
+    idpWrk[("Workforce / Partner IdP<br/><i>Microsoft Entra ID</i>")]:::extSystem
     notif[("Notifications Provider<br/><i>email / SMS / push</i>")]:::extSystem
     catSrc[("Product Catalog / Rates Source")]:::extSystem
     fraud[("Fraud / KYC Service")]:::extSystem
@@ -38,13 +39,14 @@ flowchart LR
     ddc -- "Quote/Issue/Endorse<br/>(sync via ACL)" --> coreP
     ddc -- "Customer profile<br/>(sync + events)" --> coreC
     ddc -- "Authorize / Capture<br/>(sync + webhooks, idempotent)" --> payGw
-    ddc -- "AuthN / AuthZ (OIDC)" --> idp
+    ddc -- "Customer AuthN (OIDC)" --> idpCust
+    ddc -- "Staff / partner AuthN (OIDC)" --> idpWrk
     ddc -- "Send notifications<br/>(async via events)" --> notif
     ddc -- "Reference data<br/>(cache-aside)" --> catSrc
     ddc -- "Risk / KYC checks<br/>(sync, with timeouts + CB)" --> fraud
     ddc -- "Telemetry: logs/metrics/traces" --> obs
 
     %% Notes for resilience expectations on integrations (rendered as labels)
-    %% All outbound calls go through the reusable Integration Framework:
+    %% All outbound calls go through packages/integration-framework (Integration Layer):
     %% timeouts, retries+jitter, circuit breaker (opossum), bulkhead, idempotency,
     %% async messaging where applicable, and trace propagation (W3C traceparent).
