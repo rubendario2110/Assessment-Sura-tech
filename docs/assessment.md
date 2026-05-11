@@ -6,13 +6,10 @@
 
 | Category | Documents |
 | --- | --- |
-| **Entry points** | [README.md](../README.md) (install, scripts, demo verification) · [assessment-input.md](./assessment-input.md) (captured brief) · **this file** [assessment.md](./assessment.md) |
-| **Executable specs** | [A-architecture.spec.md](../specs/A-architecture.spec.md) · [B-integration-framework.spec.md](../specs/B-integration-framework.spec.md) · [C-demo-service.spec.md](../specs/C-demo-service.spec.md) · [D-tdr.spec.md](../specs/D-tdr.spec.md) |
 | **C4 & architecture diagrams** | [architecture.mmd](./architecture.mmd) · [c4-system-context.mmd](./c4-system-context.mmd) · [c4-container.mmd](./c4-container.mmd) · [c4-component-integration-layer.mmd](./c4-component-integration-layer.mmd) · [c4-diagram-explanations.md](./c4-diagram-explanations.md) |
 | **Scrum / backlog** | [plan-scrum.md](./plan-scrum.md) · [backlog.md](./backlog.md) · [sprint-status.md](./sprint-status.md) |
 | **API exports** | [openapi.json](./api/openapi.json) · [assessment.postman_collection.json](./postman/assessment.postman_collection.json) |
 | **Observability demo** | [docker-compose.demo.yml](../docker-compose.demo.yml) · [otel-collector-config.yaml](../observability/otel-collector-config.yaml) |
-| **Agent evidence** | [spec-agent-evidence.md](./evidence/spec-agent-evidence.md) · [planning-agent-evidence.md](./evidence/planning-agent-evidence.md) · [architecture-agent-evidence.md](./evidence/architecture-agent-evidence.md) · [implementation-agent-evidence.md](./evidence/implementation-agent-evidence.md) · [review-agent-evidence.md](./evidence/review-agent-evidence.md) |
 
 ---
 
